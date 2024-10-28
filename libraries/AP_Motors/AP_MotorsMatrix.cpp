@@ -16,6 +16,7 @@
 #include <AP_HAL/AP_HAL.h>
 #include "AP_MotorsMatrix.h"
 #include <AP_Vehicle/AP_Vehicle_Type.h>
+#include <iostream>
 
 extern const AP_HAL::HAL& hal;
 
@@ -143,7 +144,7 @@ void AP_MotorsMatrix::set_frame_class_and_type(motor_frame_class frame_class, mo
 void AP_MotorsMatrix::output_to_motors()
 {
     int8_t i;
-
+    std::cout << "output_to_motors" << std::endl;
     switch (_spool_state) {
         case SpoolState::SHUT_DOWN: {
             // no output
@@ -152,6 +153,7 @@ void AP_MotorsMatrix::output_to_motors()
                     _actuator[i] = 0.0f;
                 }
             }
+            std::cout << "SHUT_DOWN" << std::endl;
             break;
         }
         case SpoolState::GROUND_IDLE:
@@ -161,6 +163,64 @@ void AP_MotorsMatrix::output_to_motors()
                     set_actuator_with_slew(_actuator[i], actuator_spin_up_to_ground_idle());
                 }
             }
+            std::cout << "GROUND_IDLE" << std::endl;
+            break;
+        case SpoolState::SPOOLING_UP:
+        case SpoolState::THROTTLE_UNLIMITED:
+        case SpoolState::SPOOLING_DOWN:
+            std::cout << "SPOOLING_DOWN" << std::endl;
+            // Checks for using LLC
+            std::cout << "use_LLC: " << _use_LLC << std::endl;
+            if(_use_LLC) {
+                float omega[] = {_omega1_in, _omega2_in, _omega3_in, _omega4_in};
+                for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
+                    if (motor_enabled[i]) {
+                        _actuator[i] = omega[i];
+                    }
+                }
+                break;
+            }
+            // set motor output based on thrust requests
+            for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
+                if (motor_enabled[i]) {
+                    set_actuator_with_slew(_actuator[i], thr_lin.thrust_to_actuator(_thrust_rpyt_out[i]));
+                }
+            }
+            break;
+    }
+
+    // convert output to PWM and send to each motor
+    for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
+        if (motor_enabled[i]) {
+            rc_write(i, output_to_pwm(_actuator[i]));
+        }
+    }
+}
+
+// llc_output_to_motors - converts angular velocity to PWM and sends to each motor
+void AP_MotorsMatrix::llc_output_to_motors()
+{
+    int8_t i;
+    std::cout << "output_to_motors" << std::endl;
+    switch (_spool_state) {
+        case SpoolState::SHUT_DOWN: {
+            // no output
+            for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
+                if (motor_enabled_mask(i)) {
+                    _actuator[i] = 0.0f;
+                }
+            }
+            std::cout << "SHUT_DOWN" << std::endl;
+            break;
+        }
+        case SpoolState::GROUND_IDLE:
+            // sends output to motors when armed but not flying
+            for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
+                if (motor_enabled[i]) {
+                    set_actuator_with_slew(_actuator[i], actuator_spin_up_to_ground_idle());
+                }
+            }
+            std::cout << "GROUND_IDLE" << std::endl;
             break;
         case SpoolState::SPOOLING_UP:
         case SpoolState::THROTTLE_UNLIMITED:
@@ -171,6 +231,7 @@ void AP_MotorsMatrix::output_to_motors()
                     set_actuator_with_slew(_actuator[i], thr_lin.thrust_to_actuator(_thrust_rpyt_out[i]));
                 }
             }
+            std::cout << "SPOOLING_DOWN" << std::endl;
             break;
     }
 

@@ -58,6 +58,9 @@ public:
     // output_to_motors - sends minimum values out to the motors
     virtual void        output_to_motors() override;
 
+    // llc_output_to_motors - sends commands to the motors
+    virtual void        llc_output_to_motors() override;
+
     // get_motor_mask - returns a bitmask of which outputs are being used for motors (1 means being used)
     //  this can be used to ensure other pwm outputs (i.e. for servos) do not conflict
     uint32_t            get_motor_mask() override;

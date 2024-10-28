@@ -118,6 +118,9 @@ protected:
     // output_to_motors - sends commands to the motors
     virtual void        output_to_motors() = 0;
 
+    // llc_output_to_motors - sends commands to the motors
+    virtual void        llc_output_to_motors() {}
+
     // update the throttle input filter
     virtual void        update_throttle_filter() override;
 

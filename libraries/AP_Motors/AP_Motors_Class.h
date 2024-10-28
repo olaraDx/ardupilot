@@ -143,6 +143,11 @@ public:
     void                set_slew_filter_cutoff(float filt_hz) { _throttle_slew_filter.set_cutoff_frequency(filt_hz); }
     void                set_forward(float forward_in) { _forward_in = forward_in; }; // range -1 ~ +1
     void                set_lateral(float lateral_in) { _lateral_in = lateral_in; };     // range -1 ~ +1
+    void                set_omega1(float omega1) { _omega1_in = omega1; }; // range 0 ~ 1
+    void                set_omega2(float omega2) { _omega2_in = omega2; }; // range 0 ~ 1
+    void                set_omega3(float omega3) { _omega3_in = omega3; }; // range 0 ~ 1
+    void                set_omega4(float omega4) { _omega4_in = omega4; }; // range 0 ~ 1
+    void                set_use_LLC(bool use_LLC) { _use_LLC = use_LLC; }; // Use or not the LLC
 
     // for 6DoF vehicles, sets the roll and pitch offset, this rotates the thrust vector in body frame
     virtual void        set_roll_pitch(float roll_deg, float pitch_deg) {};
@@ -325,6 +330,11 @@ protected:
     float               _forward_in;                // last forward input from set_forward caller
     float               _lateral_in;                // last lateral input from set_lateral caller
     float               _throttle_avg_max;          // last throttle input from set_throttle_avg_max
+    float               _omega1_in;                 // last omega1 input from set_omega1 caller
+    float               _omega2_in;                 // last omega2 input from set_omega2 caller
+    float               _omega3_in;                 // last omega3 input from set_omega3 caller
+    float               _omega4_in;                 // last omega4 input from set_omega4 caller
+    bool                _use_LLC;                   // Use or not the LLC
     LowPassFilterFloat  _throttle_filter;           // pilot throttle input filter
     DerivativeFilterFloat_Size7  _throttle_slew;    // throttle output slew detector
     LowPassFilterFloat  _throttle_slew_filter;      // filter for the output of the throttle slew

@@ -481,13 +481,18 @@ void AC_AttitudeControl_Multi::rate_controller_target_reset()
 // run the rate controller using the configured _dt and latest gyro
 void AC_AttitudeControl_Multi::rate_controller_run()
 {
+    // Set motors to use rate controller
+    this->_motors.set_use_LLC(false);
     Vector3f gyro_latest = _ahrs.get_gyro_latest();
     rate_controller_run_dt(gyro_latest, _dt);
 }
 
 // run low level attitude controller
 void AC_AttitudeControl_Multi::llc_controller_run()
-{
+{   
+    // Set motors to use LLC
+    this->_motors.set_use_LLC(true);
+
     _ang_vel_body += _sysid_ang_vel_body;
     _rate_gyro = _ahrs.get_gyro_latest();
 
@@ -558,7 +563,10 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     // Print omega_motors
     std::cout << "omega_motors: " << omega_motors[0] << ", " << omega_motors[1] << ", " << omega_motors[2] << ", " << omega_motors[3] << std::endl;
-
+    this->_motors.set_omega1(omega_motors[0]);
+    this->_motors.set_omega2(omega_motors[1]);
+    this->_motors.set_omega3(omega_motors[2]);
+    this->_motors.set_omega4(omega_motors[3]);
     
 }   
 
