@@ -185,6 +185,12 @@
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
+// LowLevelControl - control vehicle's position from GCS
+#ifndef MODE_LLC_ENABLED
+# define MODE_LLC_ENABLED 1
+#endif
+
+//////////////////////////////////////////////////////////////////////////////
 // Loiter mode - allows vehicle to hold global position
 #ifndef MODE_LOITER_ENABLED
 # define MODE_LOITER_ENABLED 1

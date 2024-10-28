@@ -1058,6 +1058,9 @@ private:
 #if MODE_GUIDED_NOGPS_ENABLED
     ModeGuidedNoGPS mode_guided_nogps;
 #endif
+#if MODE_LLC_ENABLED
+    ModeLLC mode_llc;
+#endif
 #if MODE_SMARTRTL_ENABLED
     ModeSmartRTL mode_smartrtl;
 #endif
