@@ -533,7 +533,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     // Control law
     Vector3f Tau = -kp1 * q_error_v - kp2 * omega_error;
-    float T = 0.125*9.81f;
+    float T = 0.25*9.81f;
 
     // Angular velocity arrays
     float omega_motors[4] = {0.0f, 0.0f, 0.0f, 0.0f};

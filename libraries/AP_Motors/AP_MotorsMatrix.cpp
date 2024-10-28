@@ -172,6 +172,7 @@ void AP_MotorsMatrix::output_to_motors()
             // Checks for using LLC
             std::cout << "use_LLC: " << _use_LLC << std::endl;
             if(_use_LLC) {
+                std::cout << "I'm sending pwm" << std::endl;
                 float omega[] = {_omega1_in, _omega2_in, _omega3_in, _omega4_in};
                 for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
                     if (motor_enabled[i]) {
