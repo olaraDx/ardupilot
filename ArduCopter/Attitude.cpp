@@ -1,4 +1,5 @@
 #include "Copter.h"
+#include <iostream>
 
 /*************************************************************
  *  Attitude Rate controllers and timing
@@ -16,6 +17,13 @@ void Copter::run_rate_controller()
 
     // run low level rate controllers that only require IMU data
     attitude_control->rate_controller_run();
+
+    // Check if we are in Low Level Control Mode
+    if(Copter::get_mode() == (uint8_t)Mode::Number::LLC) {
+        std::cout << "I'm in Low Level Control Mode" << std::endl;
+        attitude_control->llc_controller_run();
+    }
+
     // reset sysid and other temporary inputs
     attitude_control->rate_controller_target_reset();
 }

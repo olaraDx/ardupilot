@@ -80,6 +80,9 @@ public:
     void rate_controller_target_reset() override;
     void rate_controller_run() override;
 
+    // run low level control and send outputs to the motors
+    void llc_controller_run() override;
+
     // sanity check parameters.  should be called once before take-off
     void parameter_sanity_check() override;
 

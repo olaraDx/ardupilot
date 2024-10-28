@@ -3,6 +3,7 @@
 #include <AP_Math/AP_Math.h>
 #include <AC_PID/AC_PID.h>
 #include <AP_Scheduler/AP_Scheduler.h>
+#include <iostream>
 
 // table of user settable parameters
 const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
@@ -483,6 +484,83 @@ void AC_AttitudeControl_Multi::rate_controller_run()
     Vector3f gyro_latest = _ahrs.get_gyro_latest();
     rate_controller_run_dt(gyro_latest, _dt);
 }
+
+// run low level attitude controller
+void AC_AttitudeControl_Multi::llc_controller_run()
+{
+    _ang_vel_body += _sysid_ang_vel_body;
+    _rate_gyro = _ahrs.get_gyro_latest();
+
+    // Defining quaternions
+    Quaternion q_body, q_d, q_error;
+    q_d.from_euler(0.0f, 0.0f, 0.0f);
+    _ahrs.get_quat_body_to_ned(q_body);
+    q_body.normalize();
+
+    // Quaternion error
+    q_error = q_d.inverse() * q_body.inverse();
+    q_error.normalize();    
+    _attitude_ang_error = q_error;
+
+    // Rates
+    Vector3f omega, omega_d;
+    omega.x = _rate_gyro.x; omega.y = _rate_gyro.y; omega.z = _rate_gyro.z;
+    omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
+
+    // Rate error
+    Vector3f q_error_v(q_error.q2, q_error.q3, q_error.q4);
+    Vector3f omega_error;
+    omega_error = omega - omega_d;
+
+    // Gain matrix
+    Matrix3f kp1(1.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 1.0f);
+
+    Matrix3f kp2(0.01f, 0.0f, 0.0f,
+                0.0f, 0.01f, 0.0f,
+                0.0f, 0.0f, 0.01f);
+
+    float b = 1.0E-8, d = 0.225f, k = 2.98E-6;
+    // k -> b
+    // b -> d
+    // b -> empuje
+
+    // Control law
+    Vector3f Tau = -kp1 * q_error_v - kp2 * omega_error;
+    float T = 0.125*9.81f;
+
+    // Angular velocity arrays
+    float omega_motors[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    float omega_mtx[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    float u[4] = {T, Tau[0], Tau[1], Tau[2]};
+
+    // Motor angular velocities computation
+    float c1 = 1/(4.0f*b), c2 = sqrt(2.0f)/(4.0f*b*d), c3 = 1/(4.0f*k);
+
+    omega_mtx[0] = c1*u[0] - c2*u[1] + c2*u[2] - c3*u[3];
+    omega_mtx[1] = c1*u[0] - c2*u[1] - c2*u[2] + c3*u[3];
+    omega_mtx[2] = c1*u[0] + c2*u[1] - c2*u[2] - c3*u[3];
+    omega_mtx[3] = c1*u[0] + c2*u[1] + c2*u[2] + c3*u[3];
+
+    // Reordering motor angular velocities
+    omega_motors[0] = omega_mtx[2];
+    omega_motors[1] = omega_mtx[0];
+    omega_motors[2] = omega_mtx[1];
+    omega_motors[3] = omega_mtx[3];
+
+    // Motor angular velocities limits
+    for(int i = 0; i < 4; i++){
+        // Limit omega_motors
+        omega_motors[i] = omega_motors[i] < 0.0f ? 0.0f : sqrt(omega_motors[i])/12000.0f;
+        omega_motors[i] = omega_motors[i] > 1.0f ? 1.0f : omega_motors[i];
+    }
+
+    // Print omega_motors
+    std::cout << "omega_motors: " << omega_motors[0] << ", " << omega_motors[1] << ", " << omega_motors[2] << ", " << omega_motors[3] << std::endl;
+
+    
+}   
 
 // sanity check parameters.  should be called once before takeoff
 void AC_AttitudeControl_Multi::parameter_sanity_check()

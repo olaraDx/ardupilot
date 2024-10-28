@@ -241,6 +241,9 @@ public:
     // Run angular velocity controller and send outputs to the motors
     virtual void rate_controller_run() = 0;
 
+    // Run low level control and send outputs to the motors
+    virtual void llc_controller_run() {}
+
     // reset target loop rate modifications
     virtual void rate_controller_target_reset() {}
 
