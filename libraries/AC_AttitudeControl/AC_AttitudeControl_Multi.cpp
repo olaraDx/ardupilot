@@ -4,6 +4,7 @@
 #include <AC_PID/AC_PID.h>
 #include <AP_Scheduler/AP_Scheduler.h>
 #include <iostream>
+#include <fstream>
 
 // table of user settable parameters
 const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
@@ -496,14 +497,15 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // Altitude
     float z_d = -10.0f;
     float zp_d = 0.0f;
-    float kp_z = -4.0f;
-    float kd_z = -0.5f;
+    float kp_z = -1.0f;
+    float kd_z = -0.05f;
 
     Vector3f pos;
     Vector3f vel;
-    float T = 0.25*9.81f;
+    float mass = 0.305f;
+    float T = mass*9.81f;
     if(_ahrs.get_relative_position_NED_home(pos) && _ahrs.get_velocity_NED(vel)) {
-        T = (z_d - pos.z) * kp_z + (zp_d - vel.z) * kd_z; // + 0.25*9.81f;
+        T = (z_d - pos.z) * kp_z + (zp_d - vel.z) * kd_z + mass*9.81f;
         std::cout << "z: " << pos.z << std::endl;
         std::cout << "zp: " << vel.z << std::endl;
     }
@@ -511,56 +513,49 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // _ahrs.get
     std::cout << "Thrust: " << T << std::endl;
     
-
     _ang_vel_body += _sysid_ang_vel_body;
     _rate_gyro = _ahrs.get_gyro_latest();
 
     // Defining quaternions
     Quaternion q_body, q_d, q_error;
     q_d.from_euler(0.0f, 0.0f, 0.0f);
+    // q_d.q1 = 1.0f; q_d.q2 = 0.0f; q_d.q3 = 0.0f; q_d.q4 = 0.0f;
     _ahrs.get_quat_body_to_ned(q_body);
     q_body.normalize();
 
     // Quaternion error
-    q_error = q_d.inverse() * q_body.inverse();
-    q_error.normalize();    
+    q_error = q_body.inverse() * q_d;
     _attitude_ang_error = q_error;
 
     // Rates
     Vector3f omega, omega_d;
-    omega.x = _rate_gyro.x; omega.y = _rate_gyro.y; omega.z = _rate_gyro.z;
+    // omega.x = _rate_gyro.x; omega.y = _rate_gyro.y; omega.z = _rate_gyro.z;
+    omega.x = _ang_vel_body.x; omega.y = _ang_vel_body.y; omega.z = _ang_vel_body.z;
     omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
+
+    std::cout << "omega: " << omega.x << ", " << omega.y << ", " << omega.z << std::endl;
 
     // Rate error
     Vector3f q_error_v(q_error.q2, q_error.q3, q_error.q4);
     Vector3f omega_error;
     omega_error = omega - omega_d;
 
-    // // Gain matrix
-    // Matrix3f kp1(2.5f, 0.0f, 0.0f,
-    //         0.0f, 2.5f, 0.0f,
-    //         0.0f, 0.0f, 2.5f);
-
-    // Matrix3f kp2(0.0f, 0.0f, 0.0f,
-    //             0.0f, 0.0f, 0.0f,
-    //             0.0f, 0.0f, 0.0f);
-
-    // float b = 1.0E-8, d = 0.225f, k = 2.98E-6;
-
     // Gain matrix
-    Matrix3f kp1(2.5f, 0.0f, 0.0f,
-            0.0f, 2.5f, 0.0f,
-            0.0f, 0.0f, 2.5f);
+    Matrix3f kp1(1.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 1.0f);
 
-    Matrix3f kp2(0.0f, 0.0f, 0.0f,
-                0.0f, 0.0f, 0.0f,
-                0.0f, 0.0f, 0.0f);
-
-    float b = 2.980E-6, d = 0.225f, k = 1.140E-7;
+    Matrix3f kp2(1.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f,
+                0.0f, 0.0f, 1.0f);
+    
+    kp1 = kp1 * 2.0f;
+    kp2 = kp2 * 0.1f;
 
     // l -> d: distance from the center of the drone to the propellers
     // k -> b: thrust coefficient
     // b -> k: drag coefficient
+    float b = 2.980E-6, d = 0.3181f, k = 1.140E-7*10.0f;
 
     // Control law
     Vector3f Tau = -kp1 * q_error_v - kp2 * omega_error;
@@ -587,7 +582,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // Motor angular velocities limits
     for(int i = 0; i < 4; i++){
         // Limit omega_motors
-        omega_motors[i] = omega_motors[i] < 0.0f ? 0.0f : sqrt(omega_motors[i])/12000.0f;
+        omega_motors[i] = omega_motors[i] < 0.0f ? 0.0f : sqrt(omega_motors[i])/838.0f;
         omega_motors[i] = omega_motors[i] > 1.0f ? 1.0f : omega_motors[i];
     }
 
@@ -597,6 +592,66 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     this->_motors.set_omega2(omega_motors[1]);
     this->_motors.set_omega3(omega_motors[2]);
     this->_motors.set_omega4(omega_motors[3]);
+
+    std::ofstream data("plots.txt", std::ios_base::app);
+
+    std::cout << data.is_open() << std::endl;
+
+    if(!data.is_open()){
+        std::cout << "Error opening file" << std::endl;
+    }
+    else{
+        std::cout << "File opened" << std::endl;
+        data << AP_HAL::millis()/1E3;
+        data << " ";
+        data << q_body.q1;
+        data << " ";
+        data << q_body.q2;
+        data << " ";
+        data << q_body.q3;
+        data << " ";
+        data << q_body.q4;
+        data << " ";
+        data << q_d.q1;
+        data << " ";
+        data << q_d.q2;
+        data << " ";
+        data << q_d.q3;
+        data << " ";
+        data << q_d.q4;
+        data << " ";
+        data << q_error.q1;
+        data << " ";
+        data << q_error.q2;
+        data << " ";
+        data << q_error.q3;
+        data << " ";
+        data << q_error.q4;
+        data << " ";
+        data << u[0];
+        data << " ";
+        data << u[1];
+        data << " ";
+        data << u[2];
+        data << " ";
+        data << u[3];
+        data << " ";
+        data << omega_motors[0];
+        data << " ";
+        data << omega_motors[1];
+        data << " ";
+        data << omega_motors[2];
+        data << " ";
+        data << omega_motors[3];
+        data << " ";
+        data << omega.x;
+        data << " ";
+        data << omega.y;
+        data << " ";
+        data << omega.z;
+        data << std::endl;
+    }
+    data.close();
     
 }   
 
