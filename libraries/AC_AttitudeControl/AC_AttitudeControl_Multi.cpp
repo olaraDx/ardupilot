@@ -493,6 +493,25 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // Set motors to use LLC
     this->_motors.set_use_LLC(true);
 
+    // Altitude
+    float z_d = -10.0f;
+    float zp_d = 0.0f;
+    float kp_z = -4.0f;
+    float kd_z = -0.5f;
+
+    Vector3f pos;
+    Vector3f vel;
+    float T = 0.25*9.81f;
+    if(_ahrs.get_relative_position_NED_home(pos) && _ahrs.get_velocity_NED(vel)) {
+        T = (z_d - pos.z) * kp_z + (zp_d - vel.z) * kd_z; // + 0.25*9.81f;
+        std::cout << "z: " << pos.z << std::endl;
+        std::cout << "zp: " << vel.z << std::endl;
+    }
+
+    // _ahrs.get
+    std::cout << "Thrust: " << T << std::endl;
+    
+
     _ang_vel_body += _sysid_ang_vel_body;
     _rate_gyro = _ahrs.get_gyro_latest();
 
@@ -517,23 +536,34 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f omega_error;
     omega_error = omega - omega_d;
 
+    // // Gain matrix
+    // Matrix3f kp1(2.5f, 0.0f, 0.0f,
+    //         0.0f, 2.5f, 0.0f,
+    //         0.0f, 0.0f, 2.5f);
+
+    // Matrix3f kp2(0.0f, 0.0f, 0.0f,
+    //             0.0f, 0.0f, 0.0f,
+    //             0.0f, 0.0f, 0.0f);
+
+    // float b = 1.0E-8, d = 0.225f, k = 2.98E-6;
+
     // Gain matrix
-    Matrix3f kp1(1.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 1.0f);
+    Matrix3f kp1(2.5f, 0.0f, 0.0f,
+            0.0f, 2.5f, 0.0f,
+            0.0f, 0.0f, 2.5f);
 
-    Matrix3f kp2(0.01f, 0.0f, 0.0f,
-                0.0f, 0.01f, 0.0f,
-                0.0f, 0.0f, 0.01f);
+    Matrix3f kp2(0.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 0.0f);
 
-    float b = 1.0E-8, d = 0.225f, k = 2.98E-6;
-    // k -> b
-    // b -> d
-    // b -> empuje
+    float b = 2.980E-6, d = 0.225f, k = 1.140E-7;
+
+    // l -> d: distance from the center of the drone to the propellers
+    // k -> b: thrust coefficient
+    // b -> k: drag coefficient
 
     // Control law
     Vector3f Tau = -kp1 * q_error_v - kp2 * omega_error;
-    float T = 0.25*9.81f;
 
     // Angular velocity arrays
     float omega_motors[4] = {0.0f, 0.0f, 0.0f, 0.0f};
