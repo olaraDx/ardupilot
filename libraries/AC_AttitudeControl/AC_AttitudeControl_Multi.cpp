@@ -603,7 +603,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
                 0.0f, 0.0f, 1.0f);
     
     kp1 = kp1 * 2.0f;
-    kp2 = kp2 * 0.0f;
+    kp2 = kp2 * 0.0001f;
 
     // l -> d: distance from the center of the drone to the propellers
     // k -> b: thrust coefficient
