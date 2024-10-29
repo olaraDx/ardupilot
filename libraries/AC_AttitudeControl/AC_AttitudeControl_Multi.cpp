@@ -510,28 +510,81 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         std::cout << "zp: " << vel.z << std::endl;
     }
 
-    // _ahrs.get
     std::cout << "Thrust: " << T << std::endl;
     
+
+    // Attitude control
     _ang_vel_body += _sysid_ang_vel_body;
     _rate_gyro = _ahrs.get_gyro_latest();
 
-    // Defining quaternions
-    Quaternion q_body, q_d, q_error;
-    q_d.from_euler(0.0f, 0.0f, 0.0f);
+    // Defining quaternions for trajectory tracking
+    float t = AP_HAL::millis()/1E3;
+    float A = 0.17f, w = 1.0f;
+    float roll_d = A*sinf(w*t), pitch_d = A*cosf(w*t);
+    float roll_d_dot = A*w*cosf(w*t), pitch_d_dot = -A*w*sinf(w*t);
+    Quaternion q_roll(cosf(roll_d/2.0f), sinf(roll_d/2.0f), 0.0f, 0.0f);
+    Quaternion q_pitch(cosf(pitch_d/2.0f), 0.0f, sinf(pitch_d/2.0f), 0.0f);
+    Quaternion q_d = q_roll * q_pitch;
+    Quaternion q_roll_dot(0.0f/2.0f, roll_d_dot*cosf(roll_d/2)/2.0f, roll_d_dot*sinf(roll_d/2)/2.0f, 0.0f/2.0f);
+    Quaternion q_pitch_dot(0.0f/2.0f, 0.0f/2.0f, pitch_d_dot*cosf(pitch_d/2)/2.0f, pitch_d_dot*sinf(pitch_d/2)/2.0f);
+    Quaternion q_aux1 = q_roll_dot * q_pitch;
+    Quaternion q_aux2 = q_roll * q_pitch_dot;
+    Quaternion q_d_dot(q_aux1.q1 + q_aux2.q1, q_aux1.q2 + q_aux2.q2, q_aux1.q3 + q_aux2.q3, q_aux1.q4 + q_aux2.q4);
+    Quaternion q_aux3 = q_d.inverse() * q_d_dot;
+    Quaternion omega_d_quat(2*q_aux3.q1, 2*q_aux3.q2, 2*q_aux3.q3, 2*q_aux3.q4);
+
+    q_d.normalize();
+    omega_d_quat.normalize();
+    Vector3f omega_d(omega_d_quat.q2, omega_d_quat.q3, omega_d_quat.q4);
+
+    // Open file to save q_d and omega_d_quat along with time
+    std::ofstream att("desired_attitude.txt", std::ios_base::app);
+
+    if (!att.is_open()) {
+        std::cerr << "Error opening file" << std::endl;
+    } else {
+        // Write time, q_d and omega_d_quat to file
+        att << AP_HAL::millis() / 1E3 << " "; // Time in seconds
+        att << q_d.q1 << " " << q_d.q2 << " " << q_d.q3 << " " << q_d.q4 << " "; // q_d quaternion
+        att << omega_d_quat.q1 << " " << omega_d_quat.q2 << " " << omega_d_quat.q3 << " " << omega_d_quat.q4 << std::endl; // omega_d_quat quaternion
+        // att << q_roll.q1 << " " << q_roll.q2 << " " << q_roll.q3 << " " << q_roll.q4 << " "; // q_roll quaternion
+        // att << q_pitch.q1 << " " << q_pitch.q2 << " " << q_pitch.q3 << " " << q_pitch.q4 << std::endl; // q_pitch quaternion
+    }
+
+    att.close();
+
+    // Quaternion q_body, q_d, q_error;
+    Quaternion q_body, q_error;
+    // q_d.from_euler(0.0f, 0.0f, 0.0f);
     // q_d.q1 = 1.0f; q_d.q2 = 0.0f; q_d.q3 = 0.0f; q_d.q4 = 0.0f;
     _ahrs.get_quat_body_to_ned(q_body);
     q_body.normalize();
+
+    // Open file to save q_d, q_body, q_error along with time
+    std::ofstream attitude_data("attitude_data.txt", std::ios_base::app);
+
+    if (!attitude_data.is_open()) {
+        std::cerr << "Error opening file" << std::endl;
+    } else {
+        // Write time, q_d, q_body, q_error to file
+        attitude_data << AP_HAL::millis() / 1E3 << " "; // Time in seconds
+        attitude_data << q_d.q1 << " " << q_d.q2 << " " << q_d.q3 << " " << q_d.q4 << " "; // q_d quaternion
+        attitude_data << q_body.q1 << " " << q_body.q2 << " " << q_body.q3 << " " << q_body.q4 << " "; // q_body quaternion
+        attitude_data << q_error.q1 << " " << q_error.q2 << " " << q_error.q3 << " " << q_error.q4 << std::endl; // q_error quaternion
+    }
+
+    attitude_data.close();
 
     // Quaternion error
     q_error = q_body.inverse() * q_d;
     _attitude_ang_error = q_error;
 
     // Rates
-    Vector3f omega, omega_d;
+    Vector3f omega(_rate_gyro.x, _rate_gyro.y, _rate_gyro.z);
+    // Vector3f omega, omega_d;
     // omega.x = _rate_gyro.x; omega.y = _rate_gyro.y; omega.z = _rate_gyro.z;
-    omega.x = _ang_vel_body.x; omega.y = _ang_vel_body.y; omega.z = _ang_vel_body.z;
-    omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
+    // omega.x = _ang_vel_body.x; omega.y = _ang_vel_body.y; omega.z = _ang_vel_body.z;
+    // omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
 
     std::cout << "omega: " << omega.x << ", " << omega.y << ", " << omega.z << std::endl;
 
@@ -550,7 +603,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
                 0.0f, 0.0f, 1.0f);
     
     kp1 = kp1 * 2.0f;
-    kp2 = kp2 * 0.1f;
+    kp2 = kp2 * 0.0f;
 
     // l -> d: distance from the center of the drone to the propellers
     // k -> b: thrust coefficient
