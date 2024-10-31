@@ -563,9 +563,12 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     _ahrs.get_quat_body_to_ned(q_body);
     q_body.normalize();
 
+    // q_d.q1 = 1.0f; q_d.q2 = 0.0f; q_d.q3 = 0.0f; q_d.q4 = 0.0f;
+    // omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
 
     // Quaternion error
     q_error = q_body.inverse() * q_d;
+    // q_error = q_d.inverse() * q_body.inverse();
     _attitude_ang_error = q_error;
 
     // Rates
@@ -607,10 +610,10 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     Matrix3f kp2(1.0f, 0.0f, 0.0f,
                 0.0f, 1.0f, 0.0f,
-                0.0f, 0.0f, 1.0f);
+                0.0f, 0.0f, -1.0f);
     
     kp1 = kp1 * 2.0f;
-    kp2 = kp2 * 0.001f;
+    kp2 = kp2 * -0.1f;
 
     // l -> d: distance from the center of the drone to the propellers
     // k -> b: thrust coefficient
@@ -624,6 +627,9 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     float omega_motors[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     float omega_mtx[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     float u[4] = {T, Tau[0], Tau[1], Tau[2]};
+    // float u[4] = {T, 0.0f, 0.0f, 0.1f};
+
+    std::cout << "Tau: " << Tau.x << ", " << Tau.y << ", " << Tau.z << std::endl;
 
     // Motor angular velocities computation
     float c1 = 1/(4.0f*b), c2 = sqrtf(2.0f)/(4.0f*b*d), c3 = 1/(4.0f*k);
@@ -639,10 +645,24 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     omega_motors[2] = omega_mtx[1];
     omega_motors[3] = omega_mtx[3];
 
+    // omega_motors[0] = omega_mtx[0];
+    // omega_motors[1] = omega_mtx[2];
+    // omega_motors[2] = omega_mtx[3];
+    // omega_motors[3] = omega_mtx[1];
+
+
+    // float aux1 = omega_motors[0];
+    // float aux2 = omega_motors[1];
+    // omega_motors[0] = omega_motors[2];
+    // omega_motors[1] = omega_motors[3];
+    // omega_motors[2] = aux1;
+    // omega_motors[3] = aux2;
+
+
     // Motor angular velocities limits
     for(int i = 0; i < 4; i++){
         // Limit omega_motors
-        omega_motors[i] = omega_motors[i] < 0.0f ? 0.0f : sqrt(omega_motors[i])/838.0f;
+        omega_motors[i] = omega_motors[i] < 0.0f ? 0.0f : sqrtf(omega_motors[i])/838.0f;
         omega_motors[i] = omega_motors[i] > 1.0f ? 1.0f : omega_motors[i];
     }
 
