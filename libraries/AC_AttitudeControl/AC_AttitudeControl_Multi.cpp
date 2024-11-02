@@ -569,8 +569,8 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
 
     // Quaternion error
-    q_error = q_body.inverse() * q_d;
-    // q_error = q_d.inverse() * q_body.inverse();
+    // q_error = q_body.inverse() * q_d;
+    q_error = q_d.inverse() * q_body;
     _attitude_ang_error = q_error;
 
     // Rates
@@ -629,10 +629,10 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     Matrix3f kp2(1.0f, 0.0f, 0.0f,
                 0.0f, 1.0f, 0.0f,
-                0.0f, 0.0f, -1.0f);
+                0.0f, 0.0f, 7.0f);
     
     kp1 = kp1 * 2.0f;
-    kp2 = kp2 * -0.1f;
+    kp2 = kp2 * 0.1f;
 
     // l -> d: distance from the center of the drone to the propellers
     // k -> b: thrust coefficient
@@ -653,16 +653,26 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // Motor angular velocities computation
     float c1 = 1/(4.0f*b), c2 = sqrtf(2.0f)/(4.0f*b*d), c3 = 1/(4.0f*k);
 
-    omega_mtx[0] = c1*u[0] - c2*u[1] + c2*u[2] - c3*u[3];
-    omega_mtx[1] = c1*u[0] - c2*u[1] - c2*u[2] + c3*u[3];
-    omega_mtx[2] = c1*u[0] + c2*u[1] - c2*u[2] - c3*u[3];
-    omega_mtx[3] = c1*u[0] + c2*u[1] + c2*u[2] + c3*u[3];
+    // omega_mtx[0] = c1*u[0] - c2*u[1] + c2*u[2] - c3*u[3];
+    // omega_mtx[1] = c1*u[0] - c2*u[1] - c2*u[2] + c3*u[3];
+    // omega_mtx[2] = c1*u[0] + c2*u[1] - c2*u[2] - c3*u[3];
+    // omega_mtx[3] = c1*u[0] + c2*u[1] + c2*u[2] + c3*u[3];
+
+    omega_mtx[0] = c1*u[0] - c2*u[1] + c2*u[2] + c3*u[3];
+    omega_mtx[1] = c1*u[0] + c2*u[1] - c2*u[2] + c3*u[3];
+    omega_mtx[2] = c1*u[0] + c2*u[1] + c2*u[2] - c3*u[3];
+    omega_mtx[3] = c1*u[0] - c2*u[1] - c2*u[2] - c3*u[3];
+
+    omega_motors[0] = omega_mtx[0];
+    omega_motors[1] = omega_mtx[1];
+    omega_motors[2] = omega_mtx[2];
+    omega_motors[3] = omega_mtx[3];
 
     // Reordering motor angular velocities
-    omega_motors[0] = omega_mtx[2];
-    omega_motors[1] = omega_mtx[0];
-    omega_motors[2] = omega_mtx[1];
-    omega_motors[3] = omega_mtx[3];
+    // omega_motors[0] = omega_mtx[2];
+    // omega_motors[1] = omega_mtx[0];
+    // omega_motors[2] = omega_mtx[1];
+    // omega_motors[3] = omega_mtx[3];
 
     // omega_motors[0] = omega_mtx[0];
     // omega_motors[1] = omega_mtx[2];
