@@ -585,6 +585,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     std::cout << "new_file: " << this->new_file << std::endl;   
     std:: cout << "Filename: " << this->filename << std::endl;
 
+    // To create a new file with time stamp
     if(this->new_file) {
         // Time stamp
         this->new_file = false;  
@@ -593,7 +594,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         char timestamp[20];
         std::strftime(timestamp, sizeof(timestamp), "%m-%d_%H-%M-%S", &tm);
 
-        this->filename = "attitude_data_" + std::string(timestamp) + ".txt";
+        this->filename = "/home/olara/Desktop/plots_ap/attitude_data/attitude_data_" + std::string(timestamp) + ".txt";
     }
     std::cout << "new_file: " << this->new_file << std::endl; 
     std::cout << "Filename: " << this->filename << std::endl;
