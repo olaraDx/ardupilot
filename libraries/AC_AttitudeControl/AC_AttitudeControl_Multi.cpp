@@ -5,6 +5,7 @@
 #include <AP_Scheduler/AP_Scheduler.h>
 #include <iostream>
 #include <fstream>
+#include <ctime>
 
 // table of user settable parameters
 const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
@@ -484,6 +485,8 @@ void AC_AttitudeControl_Multi::rate_controller_run()
 {
     // Set motors to use rate controller
     this->_motors.set_use_LLC(false);
+    this->new_file = true;
+
     Vector3f gyro_latest = _ahrs.get_gyro_latest();
     rate_controller_run_dt(gyro_latest, _dt);
 }
@@ -512,7 +515,6 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     std::cout << "Thrust: " << T << std::endl;
     
-
     // Attitude control
     _ang_vel_body += _sysid_ang_vel_body;
     _rate_gyro = _ahrs.get_gyro_latest();
@@ -580,8 +582,24 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     std::cout << "omega: " << omega.x << ", " << omega.y << ", " << omega.z << std::endl;
 
+    std::cout << "new_file: " << this->new_file << std::endl;   
+    std:: cout << "Filename: " << this->filename << std::endl;
+
+    if(this->new_file) {
+        // Time stamp
+        this->new_file = false;  
+        auto td = std::time(nullptr);
+        auto tm = *std::localtime(&td);
+        char timestamp[20];
+        std::strftime(timestamp, sizeof(timestamp), "%m-%d_%H-%M-%S", &tm);
+
+        this->filename = "attitude_data_" + std::string(timestamp) + ".txt";
+    }
+    std::cout << "new_file: " << this->new_file << std::endl; 
+    std::cout << "Filename: " << this->filename << std::endl;
+
     // Open file to save q_d, q_body, q_error along with time
-    std::ofstream attitude_data("attitude_data.txt", std::ios_base::app);
+    std::ofstream attitude_data(this->filename, std::ios_base::app);
 
     if (!attitude_data.is_open()) {
         std::cerr << "Error opening file" << std::endl;

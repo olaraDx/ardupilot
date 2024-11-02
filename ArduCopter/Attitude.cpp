@@ -15,13 +15,15 @@ void Copter::run_rate_controller()
     attitude_control->set_dt(last_loop_time_s);
     pos_control->set_dt(last_loop_time_s);
 
-    // run low level rate controllers that only require IMU data
-    attitude_control->rate_controller_run();
-
-    // Check if we are in Low Level Control Mode
+    // Check if we are in Low Level Control Mode and run the appropriate controller
     if(Copter::get_mode() == (uint8_t)Mode::Number::LLC) {
         std::cout << "I'm in Low Level Control Mode" << std::endl;
         attitude_control->llc_controller_run();
+    }
+    else {
+        // For another mode, run the rate controller
+        // run low level rate controllers that only require IMU data
+        attitude_control->rate_controller_run();
     }
 
     // reset sysid and other temporary inputs

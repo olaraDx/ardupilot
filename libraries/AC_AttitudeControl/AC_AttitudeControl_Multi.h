@@ -5,6 +5,7 @@
 
 #include "AC_AttitudeControl.h"
 #include <AP_Motors/AP_MotorsMulticopter.h>
+#include <string>
 
 // default rate controller PID gains
 #ifndef AC_ATC_MULTI_RATE_RP_P
@@ -93,6 +94,10 @@ public:
     static const struct AP_Param::GroupInfo var_info[];
 
 protected:
+
+    // Provisional variables for data logging
+    bool new_file = true;
+    std::string filename = "data.txt";
 
     // boost angle_p/pd each cycle on high throttle slew
     void update_throttle_gain_boost();
