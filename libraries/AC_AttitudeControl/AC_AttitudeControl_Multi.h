@@ -99,6 +99,7 @@ protected:
     bool new_file = true;
     std::string filename = "data.txt";
     Quaternion last_q_body;
+    Quaternion last_q_d;
     bool new_flight = true;
 
     // boost angle_p/pd each cycle on high throttle slew

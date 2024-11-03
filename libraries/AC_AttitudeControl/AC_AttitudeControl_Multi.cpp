@@ -497,54 +497,68 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // Set motors to use LLC
     this->_motors.set_use_LLC(true);
 
-    // Altitude
-    float z_d = -10.0f;
-    float zp_d = 0.0f;
-    // float kp_z = -20.0f;
-    // float kd_z = -1.0f;
-    float kp_z = -1.0f;
-    float kd_z = -0.01f;
 
+    // Virtual controller
     Vector3f pos;
     Vector3f vel;
     float mass = 0.3f;
-    float T = mass*9.81f;
-    if(_ahrs.get_relative_position_NED_home(pos) && _ahrs.get_velocity_NED(vel)) {
-        T = (z_d - pos.z) * kp_z + (zp_d - vel.z) * kd_z + mass*9.81f;
-    }
-    
-    // Attitude control
-    _ang_vel_body += _sysid_ang_vel_body;
-    _rate_gyro = _ahrs.get_gyro_latest();
+    float g = 9.81f;
+    float T = mass*g;
+    float psi_d = 0.0f;
+    float psi_dot_d = 0.0f;
 
-    // Defining quaternions for trajectory tracking
-    float t = AP_HAL::millis()/1E3;
-    float A = 0.17f, w = 1.0f;
-    float roll_d = A*sinf(w*t), pitch_d = A*cosf(w*t);
-    Quaternion q_roll(cosf(roll_d/2.0f), sinf(roll_d/2.0f), 0.0f, 0.0f);
-    Quaternion q_pitch(cosf(pitch_d/2.0f), 0.0f, sinf(pitch_d/2.0f), 0.0f);
-    Quaternion q_d = q_roll * q_pitch;
+    Matrix3f kp_pos(0.0f, 0.0f, 0.0f,
+                    0.0f, 0.0f, 0.0f,
+                    0.0f, 0.0f, 1.0f);
 
-    float sigma1 = 0.5f*A*sinf(w*t);
-    float sigma2 = 0.5f*A*cosf(w*t);
-    Quaternion q_d_dot(0.5f*A*w*cosf(sigma1)*sinf(sigma2)*sinf(w*t) - 0.5f*A*w*sinf(sigma1)*cosf(sigma2)*cosf(w*t),
-                        0.5f*A*w*cosf(sigma1)*cosf(sigma2)*cosf(w*t) + 0.5f*A*w*sinf(sigma1)*sinf(sigma2)*sinf(w*t),
-                        -0.5f*A*w*cosf(sigma1)*cosf(sigma2)*sinf(w*t) - 0.5f*A*w*sinf(sigma1)*sinf(sigma2)*cosf(w*t),
-                        0.5f*A*w*sinf(sigma1)*cosf(sigma2)*sinf(w*t) - 0.5f*A*w*cosf(sigma1)*sinf(sigma2)*cosf(w*t));
+    Matrix3f kd_pos(1.0f, 0.0f, 0.0f,
+                    0.0f, 1.0f, 0.0f,
+                    0.0f, 0.0f, 0.01f);
 
-    Quaternion q_aux3 = q_d.inverse() * q_d_dot;
-    Quaternion omega_d_quat(2*q_aux3.q1, 2*q_aux3.q2, 2*q_aux3.q3, 2*q_aux3.q4);
-    
+    Vector3f x(0.0f, 0.0f, 0.0f);
+    Vector3f x_dot(0.0f, 0.0f, 0.0f);
+    Vector3f x_ddot(0.0f, 0.0f, 0.0f);
 
-    // omega_d_quat.normalize();
-    Vector3f omega_d(omega_d_quat.q2, omega_d_quat.q3, omega_d_quat.q4);
+    Vector3f x_d(0.0f, 0.0f, -10.0f);
+    Vector3f x_dot_d(0.0f, 0.0f, 0.0f);
+    Vector3f x_ddot_d(0.0f, 0.0f, 0.0f);
+    Vector3f x_dddot_d(0.0f, 0.0f, 0.0f);
+
+    Vector3f e_z(0.0f, 0.0f, 1.0f);
+    Vector3f omega_d(0.0f, 0.0f, 0.0f);
+    Quaternion q_d(1.0f, 0.0f, 0.0f, 0.0f);
+
+    if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) {
+        x_ddot = _ahrs.get_accel_ef();
+        Vector3f u_d = -kp_pos * (x - x_d) - kd_pos * (x_dot - x_dot_d) + e_z * mass * g + x_ddot_d * mass;
+        Vector3f u_dot_d = -kp_pos * (x_dot - x_dot_d) - kd_pos * (x_ddot- x_ddot_d) + x_dddot_d * mass;
+        Vector3f u_d_norm = u_d.normalized();
+        Vector3f u_dot_d_norm = u_dot_d / sqrtf(u_d * u_d) - u_d * (u_d * u_dot_d) / powf(u_d * u_d, 1.5f);
+
+        std::cout << "u_d_norm: " << u_d_norm.x << ", " << u_d_norm.y << ", " << u_d_norm.z << std::endl;
+
+        Quaternion q_d_aux(1.0f/2.0f*sqrtf((-2.0f*u_d_norm.z + 2.0f))*cosf(psi_d/2.0f),
+                        (-u_d_norm.x*sinf(psi_d/2.0f) + u_d_norm.y*cosf(psi_d/2.0f))/sqrtf((-2.0f*u_d_norm.z + 2.0f)),
+                        (-u_d_norm.x*cosf(psi_d/2.0f) - u_d_norm.y*sinf(psi_d/2.0f))/sqrtf((-2.0f*u_d_norm.z + 2.0f)),
+                        1.0f/2.0f*sqrtf((-2.0f*u_d_norm.z + 2.0f))*sinf(psi_d/2.0f));
+        
+        Vector3f omega_d_aux(-sinf(psi_d)*u_dot_d_norm.x + cosf(psi_d)*u_dot_d_norm.y + u_dot_d_norm.z*(sinf(psi_d)*u_d_norm.x - cosf(psi_d)*u_d_norm.y)/(u_d_norm.z - 1.0f),
+                        -cosf(psi_d)*u_dot_d_norm.x - sinf(psi_d)*u_dot_d_norm.y + u_dot_d_norm.z*(cosf(psi_d)*u_d_norm.x + sinf(psi_d)*u_d_norm.y)/(u_d_norm.z - 1.0f),
+                        psi_dot_d + (u_d_norm.x*u_dot_d_norm.y - u_d_norm.y*u_dot_d_norm.x)/(u_d_norm.z - 1.0f));
+
+        q_d = q_d_aux;
+        omega_d = omega_d_aux;     
+        T = u_d.length();           
+    }   
+
 
     // Quaternion q_body, q_d, q_error;
     Quaternion q_body, q_error;
     _ahrs.get_quat_body_to_ned(q_body);
 
-    // q_d.from_euler(0.0f, 0.0f, -3.14f*0.75f);
-    // omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
+    // q_d.from_euler(0.0f, 0.0f, 0.0f);
+    q_d.q1 = 1.0f; q_d.q2 = 0.0f; q_d.q3 = 0.0f; q_d.q4 = 0.0f;
+    omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
 
     // Normalizing quaternions
     q_d.normalize();
@@ -552,6 +566,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     if(this->new_flight) {
         last_q_body = q_body;
+        last_q_d = q_d;
         this->new_flight = false;
     }
 
@@ -563,8 +578,15 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         q_body.q4 = -q_body.q4;
     }
 
+    if(q_d.q1*last_q_d.q1 + q_d.q2*last_q_d.q2 + q_d.q3*last_q_d.q3 + q_d.q4*last_q_d.q4 < 0.0f) {
+        q_d.q1 = -q_d.q1;
+        q_d.q2 = -q_d.q2;
+        q_d.q3 = -q_d.q3;
+        q_d.q4 = -q_d.q4;
+    }
+
     last_q_body = q_body;
-    
+    last_q_d = q_d;
 
     // Quaternion error
     q_error = q_d.inverse() * q_body;
