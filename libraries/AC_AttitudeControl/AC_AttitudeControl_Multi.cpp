@@ -500,20 +500,18 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // Altitude
     float z_d = -10.0f;
     float zp_d = 0.0f;
-    float kp_z = -20.0f;
-    float kd_z = -1.0f;
+    // float kp_z = -20.0f;
+    // float kd_z = -1.0f;
+    float kp_z = -1.0f;
+    float kd_z = -0.01f;
 
     Vector3f pos;
     Vector3f vel;
-    float mass = 0.305f;
+    float mass = 0.3f;
     float T = mass*9.81f;
     if(_ahrs.get_relative_position_NED_home(pos) && _ahrs.get_velocity_NED(vel)) {
         T = (z_d - pos.z) * kp_z + (zp_d - vel.z) * kd_z + mass*9.81f;
-        std::cout << "z: " << pos.z << std::endl;
-        std::cout << "zp: " << vel.z << std::endl;
     }
-
-    std::cout << "Thrust: " << T << std::endl;
     
     // Attitude control
     _ang_vel_body += _sysid_ang_vel_body;
@@ -560,30 +558,104 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     // Quaternion q_body, q_d, q_error;
     Quaternion q_body, q_error;
-    // q_d.from_euler(0.0f, 0.0f, 0.0f);
-    // q_d.q1 = 1.0f; q_d.q2 = 0.0f; q_d.q3 = 0.0f; q_d.q4 = 0.0f;
     _ahrs.get_quat_body_to_ned(q_body);
-    q_body.normalize();
 
-    // q_d.q1 = 1.0f; q_d.q2 = 0.0f; q_d.q3 = 0.0f; q_d.q4 = 0.0f;
-    // omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
+    q_d.from_euler(0.0f, 0.0f, -3.14f*0.75f);
+    omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
 
     // Quaternion error
-    // q_error = q_body.inverse() * q_d;
     q_error = q_d.inverse() * q_body;
     _attitude_ang_error = q_error;
 
     // Rates
     Vector3f omega(_rate_gyro.x, _rate_gyro.y, _rate_gyro.z);
-    // Vector3f omega, omega_d;
-    // omega.x = _rate_gyro.x; omega.y = _rate_gyro.y; omega.z = _rate_gyro.z;
-    // omega.x = _ang_vel_body.x; omega.y = _ang_vel_body.y; omega.z = _ang_vel_body.z;
-    // omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
+    // Vector3f omega(_ang_vel_body.x, _ang_vel_body.y, _ang_vel_body.z);
 
-    std::cout << "omega: " << omega.x << ", " << omega.y << ", " << omega.z << std::endl;
+    q_body.normalize();
+    q_d.normalize();
 
-    std::cout << "new_file: " << this->new_file << std::endl;   
-    std:: cout << "Filename: " << this->filename << std::endl;
+    // Rate error
+    Vector3f q_error_v(q_error.q2, q_error.q3, q_error.q4);
+    Vector3f omega_error;
+    omega_error = omega - omega_d;
+
+    // // Gain matrix
+    // Matrix3f kp1(2.0f, 0.0f, 0.0f,
+    //         0.0f, 2.0f, 0.0f,
+    //         0.0f, 0.0f, 0.5f);
+
+    // Matrix3f kp2(0.1f, 0.0f, 0.0f,
+    //             0.0f, 0.1f, 0.0f,
+    //             0.0f, 0.0f, 0.0f);
+
+//   // Gain matrix
+//     Matrix3f kp1(0.75f, 0.0f, 0.0f,
+//             0.0f, 0.75f, 0.0f,
+//             0.0f, 0.0f, 0.5f);
+
+//     Matrix3f kp2(0.05f, 0.0f, 0.0f,
+//                 0.0f, 0.05f, 0.0f,
+//                 0.0f, 0.0f, 0.001f);
+
+//   // Gain matrix
+//     Matrix3f kp1(0.75f, 0.0f, 0.0f,
+//             0.0f, 0.75f, 0.0f,
+//             0.0f, 0.0f, 0.35f);
+
+//     Matrix3f kp2(0.05f, 0.0f, 0.0f,
+//                 0.0f, 0.05f, 0.0f,
+//                 0.0f, 0.0f, 0.001f);
+
+  // Gain matrix
+    Matrix3f kp1(1.0, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 0.1);
+
+    Matrix3f kp2(0.1f, 0.0f, 0.0f,
+                0.0f, 0.1f, 0.0f,
+                0.0f, 0.0f, 0.01f);
+                
+
+    // kp2 = kp2 * 0.0f;
+
+
+    // Control law for the attitude controller
+    Vector3f Tau = -kp1 * q_error_v - kp2 * omega_error;
+
+    // Control action
+    float u[4] = {T, Tau[0], Tau[1], Tau[2]};
+    // float u[4] = {T, 0.0f, 0.0f, 0.0f};
+
+    // Motor angular velocities computation
+    // l -> d: distance from the center of the drone to the propellers
+    // k -> b: thrust coefficient
+    // b -> k: drag coefficient
+    float b = 2.980E-6, d = 0.3181f, k = 1.140E-7*10.0f;
+    float omega_motors[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    float c1 = 1/(4.0f*b), c2 = sqrtf(2.0f)/(4.0f*b*d), c3 = 1/(4.0f*k);
+    omega_motors[0] = c1*u[0] - c2*u[1] + c2*u[2] + c3*u[3];
+    omega_motors[1] = c1*u[0] + c2*u[1] - c2*u[2] + c3*u[3];
+    omega_motors[2] = c1*u[0] + c2*u[1] + c2*u[2] - c3*u[3];
+    omega_motors[3] = c1*u[0] - c2*u[1] - c2*u[2] - c3*u[3];
+    
+    // Motor angular velocities limits
+    for(int i = 0; i < 4; i++){
+        // Limit omega_motors
+        omega_motors[i] = omega_motors[i] < 0.0f ? 0.0f : sqrtf(omega_motors[i])/838.0f;
+        omega_motors[i] = omega_motors[i] > 1.0f ? 1.0f : omega_motors[i];
+    }
+
+    // Print omega_motors
+    this->_motors.set_omega1(omega_motors[0]);
+    this->_motors.set_omega2(omega_motors[1]);
+    this->_motors.set_omega3(omega_motors[2]);
+    this->_motors.set_omega4(omega_motors[3]);
+
+    // Print info
+    // std::cout << "T: " << T << std::endl;
+    std::cout << "Tau: " << Tau[0] << " " << Tau[1] << " " << Tau[2] << std::endl;
+    std::cout << "u: " << u[0] << " " << u[1] << " " << u[2] << " " << u[3] << std::endl;
+    std::cout << "omega_motors: " << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << std::endl;
 
     // To create a new file with time stamp
     if(this->new_file) {
@@ -611,157 +683,12 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         attitude_data << q_body.q1 << " " << q_body.q2 << " " << q_body.q3 << " " << q_body.q4 << " "; // q_body quaternion
         attitude_data << q_error.q1 << " " << q_error.q2 << " " << q_error.q3 << " " << q_error.q4 << " "; // q_error quaternion
         attitude_data << omega_d.x << " " << omega_d.y << " " << omega_d.z << " "; // omega_d vector
-        attitude_data << omega.x << " " << omega.y << " " << omega.z << std::endl; // omega vector
-
+        attitude_data << omega.x << " " << omega.y << " " << omega.z << " "; // omega vector
+        attitude_data << u[0] << " " << u[1] << " " << u[2] << " " << u[3] << " "; // Control action
+        attitude_data << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << std::endl; // Motor angular velocities
     }
 
     attitude_data.close();
-
-    // Rate error
-    Vector3f q_error_v(q_error.q2, q_error.q3, q_error.q4);
-    Vector3f omega_error;
-    omega_error = omega - omega_d;
-
-    // Gain matrix
-    Matrix3f kp1(1.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 1.0f);
-
-    Matrix3f kp2(1.0f, 0.0f, 0.0f,
-                0.0f, 1.0f, 0.0f,
-                0.0f, 0.0f, 7.0f);
-    
-    kp1 = kp1 * 2.0f;
-    kp2 = kp2 * 0.1f;
-
-    // l -> d: distance from the center of the drone to the propellers
-    // k -> b: thrust coefficient
-    // b -> k: drag coefficient
-    float b = 2.980E-6, d = 0.3181f, k = 1.140E-7*10.0f;
-
-    // Control law
-    Vector3f Tau = -kp1 * q_error_v - kp2 * omega_error;
-
-    // Angular velocity arrays
-    float omega_motors[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    float omega_mtx[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    float u[4] = {T, Tau[0], Tau[1], Tau[2]};
-    // float u[4] = {T, 0.0f, 0.0f, 0.1f};
-
-    std::cout << "Tau: " << Tau.x << ", " << Tau.y << ", " << Tau.z << std::endl;
-
-    // Motor angular velocities computation
-    float c1 = 1/(4.0f*b), c2 = sqrtf(2.0f)/(4.0f*b*d), c3 = 1/(4.0f*k);
-
-    // omega_mtx[0] = c1*u[0] - c2*u[1] + c2*u[2] - c3*u[3];
-    // omega_mtx[1] = c1*u[0] - c2*u[1] - c2*u[2] + c3*u[3];
-    // omega_mtx[2] = c1*u[0] + c2*u[1] - c2*u[2] - c3*u[3];
-    // omega_mtx[3] = c1*u[0] + c2*u[1] + c2*u[2] + c3*u[3];
-
-    omega_mtx[0] = c1*u[0] - c2*u[1] + c2*u[2] + c3*u[3];
-    omega_mtx[1] = c1*u[0] + c2*u[1] - c2*u[2] + c3*u[3];
-    omega_mtx[2] = c1*u[0] + c2*u[1] + c2*u[2] - c3*u[3];
-    omega_mtx[3] = c1*u[0] - c2*u[1] - c2*u[2] - c3*u[3];
-
-    omega_motors[0] = omega_mtx[0];
-    omega_motors[1] = omega_mtx[1];
-    omega_motors[2] = omega_mtx[2];
-    omega_motors[3] = omega_mtx[3];
-
-    // Reordering motor angular velocities
-    // omega_motors[0] = omega_mtx[2];
-    // omega_motors[1] = omega_mtx[0];
-    // omega_motors[2] = omega_mtx[1];
-    // omega_motors[3] = omega_mtx[3];
-
-    // omega_motors[0] = omega_mtx[0];
-    // omega_motors[1] = omega_mtx[2];
-    // omega_motors[2] = omega_mtx[3];
-    // omega_motors[3] = omega_mtx[1];
-
-
-    // float aux1 = omega_motors[0];
-    // float aux2 = omega_motors[1];
-    // omega_motors[0] = omega_motors[2];
-    // omega_motors[1] = omega_motors[3];
-    // omega_motors[2] = aux1;
-    // omega_motors[3] = aux2;
-
-
-    // Motor angular velocities limits
-    for(int i = 0; i < 4; i++){
-        // Limit omega_motors
-        omega_motors[i] = omega_motors[i] < 0.0f ? 0.0f : sqrtf(omega_motors[i])/838.0f;
-        omega_motors[i] = omega_motors[i] > 1.0f ? 1.0f : omega_motors[i];
-    }
-
-    // Print omega_motors
-    std::cout << "omega_motors: " << omega_motors[0] << ", " << omega_motors[1] << ", " << omega_motors[2] << ", " << omega_motors[3] << std::endl;
-    this->_motors.set_omega1(omega_motors[0]);
-    this->_motors.set_omega2(omega_motors[1]);
-    this->_motors.set_omega3(omega_motors[2]);
-    this->_motors.set_omega4(omega_motors[3]);
-
-    std::ofstream data("plots.txt", std::ios_base::app);
-
-    std::cout << data.is_open() << std::endl;
-
-    if(!data.is_open()){
-        std::cout << "Error opening file" << std::endl;
-    }
-    else{
-        std::cout << "File opened" << std::endl;
-        data << AP_HAL::millis()/1E3;
-        data << " ";
-        data << q_body.q1;
-        data << " ";
-        data << q_body.q2;
-        data << " ";
-        data << q_body.q3;
-        data << " ";
-        data << q_body.q4;
-        data << " ";
-        data << q_d.q1;
-        data << " ";
-        data << q_d.q2;
-        data << " ";
-        data << q_d.q3;
-        data << " ";
-        data << q_d.q4;
-        data << " ";
-        data << q_error.q1;
-        data << " ";
-        data << q_error.q2;
-        data << " ";
-        data << q_error.q3;
-        data << " ";
-        data << q_error.q4;
-        data << " ";
-        data << u[0];
-        data << " ";
-        data << u[1];
-        data << " ";
-        data << u[2];
-        data << " ";
-        data << u[3];
-        data << " ";
-        data << omega_motors[0];
-        data << " ";
-        data << omega_motors[1];
-        data << " ";
-        data << omega_motors[2];
-        data << " ";
-        data << omega_motors[3];
-        data << " ";
-        data << omega.x;
-        data << " ";
-        data << omega.y;
-        data << " ";
-        data << omega.z;
-        data << std::endl;
-    }
-    data.close();
-    
 }   
 
 // sanity check parameters.  should be called once before takeoff
