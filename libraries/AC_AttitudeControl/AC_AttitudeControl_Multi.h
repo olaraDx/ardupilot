@@ -98,6 +98,8 @@ protected:
     // Provisional variables for data logging
     bool new_file = true;
     std::string filename = "data.txt";
+    Quaternion last_q_body;
+    bool new_flight = true;
 
     // boost angle_p/pd each cycle on high throttle slew
     void update_throttle_gain_boost();

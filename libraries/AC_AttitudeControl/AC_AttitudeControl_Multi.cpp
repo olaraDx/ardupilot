@@ -535,33 +535,36 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Quaternion q_aux3 = q_d.inverse() * q_d_dot;
     Quaternion omega_d_quat(2*q_aux3.q1, 2*q_aux3.q2, 2*q_aux3.q3, 2*q_aux3.q4);
     
-    q_d.normalize();
 
     // omega_d_quat.normalize();
     Vector3f omega_d(omega_d_quat.q2, omega_d_quat.q3, omega_d_quat.q4);
-
-    // Open file to save q_d and omega_d_quat along with time
-    std::ofstream att("desired_attitude.txt", std::ios_base::app);
-
-    if (!att.is_open()) {
-        std::cerr << "Error opening file" << std::endl;
-    } else {
-        // Write time, q_d and omega_d_quat to file
-        att << AP_HAL::millis() / 1E3 << " "; // Time in seconds
-        att << q_d.q1 << " " << q_d.q2 << " " << q_d.q3 << " " << q_d.q4 << " "; // q_d quaternion
-        att << omega_d_quat.q1 << " " << omega_d_quat.q2 << " " << omega_d_quat.q3 << " " << omega_d_quat.q4 << std::endl; // omega_d_quat quaternion
-        // att << q_roll.q1 << " " << q_roll.q2 << " " << q_roll.q3 << " " << q_roll.q4 << " "; // q_roll quaternion
-        // att << q_pitch.q1 << " " << q_pitch.q2 << " " << q_pitch.q3 << " " << q_pitch.q4 << std::endl; // q_pitch quaternion
-    }
-
-    att.close();
 
     // Quaternion q_body, q_d, q_error;
     Quaternion q_body, q_error;
     _ahrs.get_quat_body_to_ned(q_body);
 
-    q_d.from_euler(0.0f, 0.0f, -3.14f*0.75f);
-    omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
+    // q_d.from_euler(0.0f, 0.0f, -3.14f*0.75f);
+    // omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
+
+    // Normalizing quaternions
+    q_d.normalize();
+    q_body.normalize();
+
+    if(this->new_flight) {
+        last_q_body = q_body;
+        this->new_flight = false;
+    }
+
+    // Checking sign changes in quaternions
+    if(q_body.q1*last_q_body.q1 + q_body.q2*last_q_body.q2 + q_body.q3*last_q_body.q3 + q_body.q4*last_q_body.q4 < 0.0f) {
+        q_body.q1 = -q_body.q1;
+        q_body.q2 = -q_body.q2;
+        q_body.q3 = -q_body.q3;
+        q_body.q4 = -q_body.q4;
+    }
+
+    last_q_body = q_body;
+    
 
     // Quaternion error
     q_error = q_d.inverse() * q_body;
@@ -571,53 +574,19 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f omega(_rate_gyro.x, _rate_gyro.y, _rate_gyro.z);
     // Vector3f omega(_ang_vel_body.x, _ang_vel_body.y, _ang_vel_body.z);
 
-    q_body.normalize();
-    q_d.normalize();
-
     // Rate error
     Vector3f q_error_v(q_error.q2, q_error.q3, q_error.q4);
     Vector3f omega_error;
     omega_error = omega - omega_d;
 
-    // // Gain matrix
-    // Matrix3f kp1(2.0f, 0.0f, 0.0f,
-    //         0.0f, 2.0f, 0.0f,
-    //         0.0f, 0.0f, 0.5f);
-
-    // Matrix3f kp2(0.1f, 0.0f, 0.0f,
-    //             0.0f, 0.1f, 0.0f,
-    //             0.0f, 0.0f, 0.0f);
-
-//   // Gain matrix
-//     Matrix3f kp1(0.75f, 0.0f, 0.0f,
-//             0.0f, 0.75f, 0.0f,
-//             0.0f, 0.0f, 0.5f);
-
-//     Matrix3f kp2(0.05f, 0.0f, 0.0f,
-//                 0.0f, 0.05f, 0.0f,
-//                 0.0f, 0.0f, 0.001f);
-
-//   // Gain matrix
-//     Matrix3f kp1(0.75f, 0.0f, 0.0f,
-//             0.0f, 0.75f, 0.0f,
-//             0.0f, 0.0f, 0.35f);
-
-//     Matrix3f kp2(0.05f, 0.0f, 0.0f,
-//                 0.0f, 0.05f, 0.0f,
-//                 0.0f, 0.0f, 0.001f);
-
   // Gain matrix
     Matrix3f kp1(1.0, 0.0f, 0.0f,
             0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 0.1);
+            0.0f, 0.0f, 0.7);
 
-    Matrix3f kp2(0.1f, 0.0f, 0.0f,
-                0.0f, 0.1f, 0.0f,
-                0.0f, 0.0f, 0.01f);
-                
-
-    // kp2 = kp2 * 0.0f;
-
+    Matrix3f kp2(0.2f, 0.0f, 0.0f,
+                0.0f, 0.2f, 0.0f,
+                0.0f, 0.0f, 0.5f);
 
     // Control law for the attitude controller
     Vector3f Tau = -kp1 * q_error_v - kp2 * omega_error;
@@ -645,7 +614,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         omega_motors[i] = omega_motors[i] > 1.0f ? 1.0f : omega_motors[i];
     }
 
-    // Print omega_motors
+    // Send motor angular velocities to the motors
     this->_motors.set_omega1(omega_motors[0]);
     this->_motors.set_omega2(omega_motors[1]);
     this->_motors.set_omega3(omega_motors[2]);
