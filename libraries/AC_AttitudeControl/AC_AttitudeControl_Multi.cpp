@@ -497,6 +497,22 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // Set motors to use LLC
     this->_motors.set_use_LLC(true);
 
+    // 3D Circular Path
+    float radius = 5.0f;
+    float w = 0.1f;
+    float t = AP_HAL::millis() / 1000.0f;
+    float x_ref = radius * cosf(w * t);
+    float y_ref = radius * sinf(w * t);
+    float z_ref = 10.0f;
+
+    float x_dot_ref = -radius * w * sinf(w * t);
+    float y_dot_ref = radius * w * cosf(w * t);
+
+    float x_ddot_ref = -radius * w * w * cosf(w * t);
+    float y_ddot_ref = -radius * w * w * sinf(w * t);
+
+    float x_dddot_ref = radius * w * w * w * sinf(w * t);
+    float y_dddot_ref = -radius * w * w * w * cosf(w * t);
 
     // Virtual controller
     Vector3f pos;
@@ -519,10 +535,10 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f x_dot(0.0f, 0.0f, 0.0f);
     Vector3f x_ddot(0.0f, 0.0f, 0.0f);
 
-    Vector3f x_d(-10.0f, -10.0f, -10.0f);
-    Vector3f x_dot_d(0.0f, 0.0f, 0.0f);
-    Vector3f x_ddot_d(0.0f, 0.0f, 0.0f);
-    Vector3f x_dddot_d(0.0f, 0.0f, 0.0f);
+    Vector3f x_d(x_ref, y_ref, -z_ref);
+    Vector3f x_dot_d(x_dot_ref, y_dot_ref, 0.0f);
+    Vector3f x_ddot_d(x_ddot_ref, y_ddot_ref, 0.0f);
+    Vector3f x_dddot_d(x_dddot_ref, y_dddot_ref, 0.0f);
 
     Vector3f e_z(0.0f, 0.0f, 1.0f);
     Vector3f omega_d(0.0f, 0.0f, 0.0f);
@@ -534,7 +550,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         Vector3f u_dot_d = -kp_pos * (x_dot - x_dot_d) - kd_pos * (x_ddot- x_ddot_d) + x_dddot_d * mass;
         Vector3f u_d_norm = u_d.normalized();
         Vector3f u_dot_d_norm = u_dot_d / sqrtf(u_d * u_d) - u_d * (u_d * u_dot_d) / powf(u_d * u_d, 1.5f);
-        
+
         Quaternion q_d_aux(1.0f/2.0f*sqrtf((-2.0f*u_d_norm.z + 2.0f))*cosf(psi_d/2.0f),
                         (-u_d_norm.x*sinf(psi_d/2.0f) + u_d_norm.y*cosf(psi_d/2.0f))/sqrtf((-2.0f*u_d_norm.z + 2.0f)),
                         (-u_d_norm.x*cosf(psi_d/2.0f) - u_d_norm.y*sinf(psi_d/2.0f))/sqrtf((-2.0f*u_d_norm.z + 2.0f)),
@@ -657,13 +673,12 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         char timestamp[20];
         std::strftime(timestamp, sizeof(timestamp), "%m-%d_%H-%M-%S", &tm);
 
-        this->filename = "/home/olara/Desktop/plots_ap/attitude_data/attitude_data_" + std::string(timestamp) + ".txt";
+        this->att_filename = "/home/olara/Desktop/plots_ap/attitude_data/attitude_data_" + std::string(timestamp) + ".txt";
+        this->pos_filename = "/home/olara/Desktop/plots_ap/position_data/position_data_" + std::string(timestamp) + ".txt";
     }
-    std::cout << "new_file: " << this->new_file << std::endl; 
-    std::cout << "Filename: " << this->filename << std::endl;
 
     // Open file to save q_d, q_body, q_error along with time
-    std::ofstream attitude_data(this->filename, std::ios_base::app);
+    std::ofstream attitude_data(this->att_filename, std::ios_base::app);
 
     if (!attitude_data.is_open()) {
         std::cerr << "Error opening file" << std::endl;
@@ -680,6 +695,19 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     }
 
     attitude_data.close();
+
+    // Open file to save position
+    std::ofstream position_data(this->pos_filename, std::ios_base::app);
+
+    // Save x and x_d to file
+    if (!position_data.is_open()) {
+        std::cerr << "Error opening file" << std::endl;
+    } else {
+        // Write time, x, x_d to file
+        position_data << AP_HAL::millis() / 1E3 << " "; // Time in seconds
+        position_data << x[0] << " " << x[1] << " " << x[2] << " "; // x vector
+        position_data << x_d[0] << " " << x_d[1] << " " << x_d[2] << std::endl; // x_d vector
+    }
 }   
 
 // sanity check parameters.  should be called once before takeoff

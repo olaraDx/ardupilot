@@ -97,7 +97,8 @@ protected:
 
     // Provisional variables for data logging
     bool new_file = true;
-    std::string filename = "data.txt";
+    std::string att_filename = "att_data.txt";
+    std::string pos_filename = "pos_data.txt";
     Quaternion last_q_body;
     Quaternion last_q_d;
     bool new_flight = true;
