@@ -507,8 +507,8 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     float psi_d = 0.0f;
     float psi_dot_d = 0.0f;
 
-    Matrix3f kp_pos(0.0f, 0.0f, 0.0f,
-                    0.0f, 0.0f, 0.0f,
+    Matrix3f kp_pos(0.2f, 0.0f, 0.0f,
+                    0.0f, 0.2f, 0.0f,
                     0.0f, 0.0f, 1.0f);
 
     Matrix3f kd_pos(1.0f, 0.0f, 0.0f,
@@ -519,7 +519,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f x_dot(0.0f, 0.0f, 0.0f);
     Vector3f x_ddot(0.0f, 0.0f, 0.0f);
 
-    Vector3f x_d(0.0f, 0.0f, -10.0f);
+    Vector3f x_d(-10.0f, -10.0f, -10.0f);
     Vector3f x_dot_d(0.0f, 0.0f, 0.0f);
     Vector3f x_ddot_d(0.0f, 0.0f, 0.0f);
     Vector3f x_dddot_d(0.0f, 0.0f, 0.0f);
@@ -530,13 +530,11 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) {
         x_ddot = _ahrs.get_accel_ef();
-        Vector3f u_d = -kp_pos * (x - x_d) - kd_pos * (x_dot - x_dot_d) + e_z * mass * g + x_ddot_d * mass;
+        Vector3f u_d = -kp_pos * (x - x_d) - kd_pos * (x_dot - x_dot_d) - e_z * mass * g + x_ddot_d * mass;
         Vector3f u_dot_d = -kp_pos * (x_dot - x_dot_d) - kd_pos * (x_ddot- x_ddot_d) + x_dddot_d * mass;
         Vector3f u_d_norm = u_d.normalized();
         Vector3f u_dot_d_norm = u_dot_d / sqrtf(u_d * u_d) - u_d * (u_d * u_dot_d) / powf(u_d * u_d, 1.5f);
-
-        std::cout << "u_d_norm: " << u_d_norm.x << ", " << u_d_norm.y << ", " << u_d_norm.z << std::endl;
-
+        
         Quaternion q_d_aux(1.0f/2.0f*sqrtf((-2.0f*u_d_norm.z + 2.0f))*cosf(psi_d/2.0f),
                         (-u_d_norm.x*sinf(psi_d/2.0f) + u_d_norm.y*cosf(psi_d/2.0f))/sqrtf((-2.0f*u_d_norm.z + 2.0f)),
                         (-u_d_norm.x*cosf(psi_d/2.0f) - u_d_norm.y*sinf(psi_d/2.0f))/sqrtf((-2.0f*u_d_norm.z + 2.0f)),
@@ -555,10 +553,12 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // Quaternion q_body, q_d, q_error;
     Quaternion q_body, q_error;
     _ahrs.get_quat_body_to_ned(q_body);
+    _ang_vel_body += _sysid_ang_vel_body;
+    _rate_gyro = _ahrs.get_gyro_latest();
 
     // q_d.from_euler(0.0f, 0.0f, 0.0f);
-    q_d.q1 = 1.0f; q_d.q2 = 0.0f; q_d.q3 = 0.0f; q_d.q4 = 0.0f;
-    omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
+    // q_d.q1 = 1.0f; q_d.q2 = 0.0f; q_d.q3 = 0.0f; q_d.q4 = 0.0f;
+    // omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
 
     // Normalizing quaternions
     q_d.normalize();
