@@ -517,7 +517,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // Virtual controller
     Vector3f pos;
     Vector3f vel;
-    float mass = 0.3f;
+    float mass = 0.27225f;
     float g = 9.81f;
     float T = mass*g;
     float psi_d = 0.0f;
@@ -525,11 +525,11 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     Matrix3f kp_pos(0.2f, 0.0f, 0.0f,
                     0.0f, 0.2f, 0.0f,
-                    0.0f, 0.0f, 1.0f);
+                    0.0f, 0.0f, 3.5f);
 
     Matrix3f kd_pos(1.0f, 0.0f, 0.0f,
                     0.0f, 1.0f, 0.0f,
-                    0.0f, 0.0f, 0.01f);
+                    0.0f, 0.0f, 1.0f);
 
     Vector3f x(0.0f, 0.0f, 0.0f);
     Vector3f x_dot(0.0f, 0.0f, 0.0f);
