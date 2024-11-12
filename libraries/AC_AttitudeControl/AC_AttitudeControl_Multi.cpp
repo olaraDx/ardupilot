@@ -497,22 +497,52 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // Set motors to use LLC
     this->_motors.set_use_LLC(true);
 
+    if(this->new_flight)
+        init_flight_time = AP_HAL::millis() / 1000.0f;
+
+    float x_ref = 0.0f, y_ref = 0.0f, z_ref = 0.0f;
+    float x_dot_ref = 0.0f, y_dot_ref = 0.0f;     
+    float x_ddot_ref = 0.0f, y_ddot_ref = 0.0f;
+    float x_dddot_ref = 0.0f, y_dddot_ref = 0.0f;
+
+
+    float t = AP_HAL::millis() / 1000.0f - init_flight_time;
+
     // 3D Circular Path
-    float radius = 5.0f;
-    float w = 0.1f;
-    float t = AP_HAL::millis() / 1000.0f;
-    float x_ref = radius * cosf(w * t);
-    float y_ref = radius * sinf(w * t);
-    float z_ref = 10.0f;
+    float radius = 10.0f;
+    float w = 0.2f;
 
-    float x_dot_ref = -radius * w * sinf(w * t);
-    float y_dot_ref = radius * w * cosf(w * t);
+    x_ref = radius * cosf(w * t) - 10.0f;
+    y_ref = radius * sinf(w * t) + 0.0f;
+    z_ref = 10.0f;
 
-    float x_ddot_ref = -radius * w * w * cosf(w * t);
-    float y_ddot_ref = -radius * w * w * sinf(w * t);
+    x_dot_ref = -radius * w * sinf(w * t);
+    y_dot_ref = radius * w * cosf(w * t);
 
-    float x_dddot_ref = radius * w * w * w * sinf(w * t);
-    float y_dddot_ref = -radius * w * w * w * cosf(w * t);
+    x_ddot_ref = -radius * w * w * cosf(w * t) ;
+    y_ddot_ref = -radius * w * w * sinf(w * t);
+
+    x_dddot_ref = radius * w * w * w * sinf(w * t);
+    y_dddot_ref = -radius * w * w * w * cosf(w * t);
+
+    
+    // Infinity Symbol Path
+    // float a = 10.0f; // semi-major axis
+    // float bp = 5.0f; // semi-minor axis
+    // float w = 0.2f; // angular frequency
+
+    // x_ref = a * sinf(w * t);
+    // y_ref = bp * sinf(w * t) * cosf(w * t);
+    // z_ref = 10.0f;
+
+    // x_dot_ref = a * w * cosf(w * t);
+    // y_dot_ref = bp * w * (cosf(2 * w * t) - sinf(2 * w * t));
+
+    // x_ddot_ref = -a * w * w * sinf(w * t);
+    // y_ddot_ref = -2 * bp * w * w * sinf(2 * w * t);
+
+    // x_dddot_ref = -a * w * w * w * cosf(w * t);
+    // y_dddot_ref = -4 * bp * w * w * w * cosf(2 * w * t);
 
     // Virtual controller
     Vector3f pos;
@@ -523,13 +553,21 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     float psi_d = 0.0f;
     float psi_dot_d = 0.0f;
 
-    Matrix3f kp_pos(0.2f, 0.0f, 0.0f,
-                    0.0f, 0.2f, 0.0f,
-                    0.0f, 0.0f, 3.5f);
+    // Matrix3f kp_pos(0.2f, 0.0f, 0.0f,
+    //                 0.0f, 0.2f, 0.0f,
+    //                 0.0f, 0.0f, 3.5f);
 
-    Matrix3f kd_pos(1.0f, 0.0f, 0.0f,
-                    0.0f, 1.0f, 0.0f,
-                    0.0f, 0.0f, 1.0f);
+    // Matrix3f kd_pos(1.0f, 0.0f, 0.0f,
+    //                 0.0f, 1.0f, 0.0f,
+    //                 0.0f, 0.0f, 1.0f);
+
+    Matrix3f kp_pos(4.0f, 0.0f, 0.0f,
+                0.0f, 4.0f, 0.0f,
+                0.0f, 0.0f, 3.5f);
+
+    Matrix3f kd_pos(3.0f, 0.0f, 0.0f,
+                    0.0f, 3.0f, 0.0f,
+                    0.0f, 0.0f, 3.0f);
 
     Vector3f x(0.0f, 0.0f, 0.0f);
     Vector3f x_dot(0.0f, 0.0f, 0.0f);
@@ -618,6 +656,15 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     omega_error = omega - omega_d;
 
   // Gain matrix
+    // Matrix3f kp1(1.0, 0.0f, 0.0f,
+    //         0.0f, 1.0f, 0.0f,
+    //         0.0f, 0.0f, 0.7);
+
+    // Matrix3f kp2(0.2f, 0.0f, 0.0f,
+    //             0.0f, 0.2f, 0.0f,
+    //             0.0f, 0.0f, 0.5f);
+
+
     Matrix3f kp1(1.0, 0.0f, 0.0f,
             0.0f, 1.0f, 0.0f,
             0.0f, 0.0f, 0.7);
@@ -684,7 +731,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         std::cerr << "Error opening file" << std::endl;
     } else {
         // Write time, q_d, q_body, q_error to file
-        attitude_data << AP_HAL::millis() / 1E3 << " "; // Time in seconds
+        attitude_data << t << " "; // Time in seconds
         attitude_data << q_d.q1 << " " << q_d.q2 << " " << q_d.q3 << " " << q_d.q4 << " "; // q_d quaternion
         attitude_data << q_body.q1 << " " << q_body.q2 << " " << q_body.q3 << " " << q_body.q4 << " "; // q_body quaternion
         attitude_data << q_error.q1 << " " << q_error.q2 << " " << q_error.q3 << " " << q_error.q4 << " "; // q_error quaternion
@@ -704,9 +751,11 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         std::cerr << "Error opening file" << std::endl;
     } else {
         // Write time, x, x_d to file
-        position_data << AP_HAL::millis() / 1E3 << " "; // Time in seconds
+        position_data << t << " "; // Time in seconds
         position_data << x[0] << " " << x[1] << " " << x[2] << " "; // x vector
-        position_data << x_d[0] << " " << x_d[1] << " " << x_d[2] << std::endl; // x_d vector
+        position_data << x_d[0] << " " << x_d[1] << " " << x_d[2] << " "; // x_d vector
+        position_data << x_dot[0] << " " << x_dot[1] << " " << x_dot[2] << " "; // x_dot vector
+        position_data << x_ddot[0] << " " << x_ddot[1] << " " << x_ddot[2] << std::endl; // x_ddot vector
     }
 }   
 

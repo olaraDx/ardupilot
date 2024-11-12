@@ -102,6 +102,7 @@ protected:
     Quaternion last_q_body;
     Quaternion last_q_d;
     bool new_flight = true;
+    float init_flight_time = 0;
 
     // boost angle_p/pd each cycle on high throttle slew
     void update_throttle_gain_boost();
