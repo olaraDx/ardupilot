@@ -509,65 +509,58 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     float t = AP_HAL::millis() / 1000.0f - init_flight_time;
 
     // 3D Circular Path
-    float radius = 10.0f;
-    float w = 0.2f;
+    // float radius = 10.0f;
+    // float w = 0.2f;
 
-    x_ref = radius * cosf(w * t) - 10.0f;
-    y_ref = radius * sinf(w * t) + 0.0f;
-    z_ref = 10.0f;
+    // x_ref = radius * cosf(w * t) - 10.0f;
+    // y_ref = radius * sinf(w * t) + 0.0f;
+    // z_ref = 10.0f;
 
-    x_dot_ref = -radius * w * sinf(w * t);
-    y_dot_ref = radius * w * cosf(w * t);
+    // x_dot_ref = -radius * w * sinf(w * t);
+    // y_dot_ref = radius * w * cosf(w * t);
 
-    x_ddot_ref = -radius * w * w * cosf(w * t) ;
-    y_ddot_ref = -radius * w * w * sinf(w * t);
+    // x_ddot_ref = -radius * w * w * cosf(w * t) ;
+    // y_ddot_ref = -radius * w * w * sinf(w * t);
 
-    x_dddot_ref = radius * w * w * w * sinf(w * t);
-    y_dddot_ref = -radius * w * w * w * cosf(w * t);
+    // x_dddot_ref = radius * w * w * w * sinf(w * t);
+    // y_dddot_ref = -radius * w * w * w * cosf(w * t);
 
     
     // Infinity Symbol Path
-    // float a = 10.0f; // semi-major axis
-    // float bp = 5.0f; // semi-minor axis
-    // float w = 0.2f; // angular frequency
+    float a = 20.0f; // semi-major axis
+    float bp = 10.0f; // semi-minor axis
+    float w = 0.2f; // angular frequency
 
-    // x_ref = a * sinf(w * t);
-    // y_ref = bp * sinf(w * t) * cosf(w * t);
-    // z_ref = 10.0f;
+    x_ref = a * sinf(w * t);
+    y_ref = bp * sinf(w * t) * cosf(w * t);
+    z_ref = 10.0f;
 
-    // x_dot_ref = a * w * cosf(w * t);
-    // y_dot_ref = bp * w * (cosf(2 * w * t) - sinf(2 * w * t));
+    x_dot_ref = a * w * cosf(w * t);
+    y_dot_ref = bp * w * (cosf(w * t) * cosf(w * t) - sinf(w * t) * sinf(w * t));
 
-    // x_ddot_ref = -a * w * w * sinf(w * t);
-    // y_ddot_ref = -2 * bp * w * w * sinf(2 * w * t);
+    x_ddot_ref = -a * w * w * sinf(w * t);
+    y_ddot_ref = -4 * bp * w * w * cosf(w * t) * sinf(w * t);
 
-    // x_dddot_ref = -a * w * w * w * cosf(w * t);
-    // y_dddot_ref = -4 * bp * w * w * w * cosf(2 * w * t);
+    x_dddot_ref = -a * w * w * w * cosf(w * t);
+    y_dddot_ref = -4 * bp * w * w * w * (cosf(w * t) * cosf(w * t) - sinf(w * t) * sinf(w * t));
 
     // Virtual controller
     Vector3f pos;
     Vector3f vel;
-    float mass = 0.27225f;
+    float mass = 0.2722f;
     float g = 9.81f;
     float T = mass*g;
     float psi_d = 0.0f;
     float psi_dot_d = 0.0f;
 
-    // Matrix3f kp_pos(0.2f, 0.0f, 0.0f,
-    //                 0.0f, 0.2f, 0.0f,
-    //                 0.0f, 0.0f, 3.5f);
+    // Gains for infinity
+    Matrix3f kp(0.5f, 0.0f, 0.0f,
+                0.0f, 0.5f, 0.0f,
+                0.0f, 0.0f, 5.5f);
 
-    // Matrix3f kd_pos(1.0f, 0.0f, 0.0f,
-    //                 0.0f, 1.0f, 0.0f,
-    //                 0.0f, 0.0f, 1.0f);
-
-    Matrix3f kp_pos(4.0f, 0.0f, 0.0f,
-                0.0f, 4.0f, 0.0f,
-                0.0f, 0.0f, 3.5f);
-
-    Matrix3f kd_pos(3.0f, 0.0f, 0.0f,
-                    0.0f, 3.0f, 0.0f,
-                    0.0f, 0.0f, 3.0f);
+    Matrix3f kd(0.2f, 0.0f, 0.0f,
+                0.0f, 0.2f, 0.0f,
+                0.0f, 0.0f, 1.0f);
 
     Vector3f x(0.0f, 0.0f, 0.0f);
     Vector3f x_dot(0.0f, 0.0f, 0.0f);
@@ -582,10 +575,16 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f omega_d(0.0f, 0.0f, 0.0f);
     Quaternion q_d(1.0f, 0.0f, 0.0f, 0.0f);
 
+    // x_d.x = 0.0f; x_d.y = 0.0f;
+    // x_dot_d.x = 0.0f; x_dot_d.y = 0.0f;
+    // x_ddot_d.x = 0.0f; x_ddot_d.y = 0.0f;
+    // x_dddot_d.x = 0.0f; x_dddot_d.y = 0.0f;
+    
+
     if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) {
         x_ddot = _ahrs.get_accel_ef();
-        Vector3f u_d = -kp_pos * (x - x_d) - kd_pos * (x_dot - x_dot_d) - e_z * mass * g + x_ddot_d * mass;
-        Vector3f u_dot_d = -kp_pos * (x_dot - x_dot_d) - kd_pos * (x_ddot- x_ddot_d) + x_dddot_d * mass;
+        Vector3f u_d = -kp * (x - x_d) - kd * (x_dot - x_dot_d) - e_z * mass * g + x_ddot_d * mass;
+        Vector3f u_dot_d = -kp * (x_dot - x_dot_d) - kd * (x_ddot- x_ddot_d) + x_dddot_d * mass;
         Vector3f u_d_norm = u_d.normalized();
         Vector3f u_dot_d_norm = u_dot_d / sqrtf(u_d * u_d) - u_d * (u_d * u_dot_d) / powf(u_d * u_d, 1.5f);
 
@@ -655,22 +654,13 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f omega_error;
     omega_error = omega - omega_d;
 
-  // Gain matrix
-    // Matrix3f kp1(1.0, 0.0f, 0.0f,
-    //         0.0f, 1.0f, 0.0f,
-    //         0.0f, 0.0f, 0.7);
+    // Gain matrix
+    Matrix3f kp1(5.0, 0.0f, 0.0f,
+            0.0f, 5.0f, 0.0f,
+            0.0f, 0.0f, 0.7f);
 
-    // Matrix3f kp2(0.2f, 0.0f, 0.0f,
-    //             0.0f, 0.2f, 0.0f,
-    //             0.0f, 0.0f, 0.5f);
-
-
-    Matrix3f kp1(1.0, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 0.7);
-
-    Matrix3f kp2(0.2f, 0.0f, 0.0f,
-                0.0f, 0.2f, 0.0f,
+    Matrix3f kp2(0.1f, 0.0f, 0.0f,
+                0.0f, 0.1f, 0.0f,
                 0.0f, 0.0f, 0.5f);
 
     // Control law for the attitude controller
