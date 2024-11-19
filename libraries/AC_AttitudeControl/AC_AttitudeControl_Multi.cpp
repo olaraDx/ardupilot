@@ -521,16 +521,21 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     float t = AP_HAL::millis()/1E3;
     float A = 0.17f, w = 1.0f;
     float roll_d = A*sinf(w*t), pitch_d = A*cosf(w*t);
+
+    // The following code is the same as the commented code below
     Quaternion q_roll(cosf(roll_d/2.0f), sinf(roll_d/2.0f), 0.0f, 0.0f);
     Quaternion q_pitch(cosf(pitch_d/2.0f), 0.0f, sinf(pitch_d/2.0f), 0.0f);
-    Quaternion q_d = q_roll * q_pitch;
+    Quaternion q_d = q_pitch * q_roll; // The multiplication order is important
 
-    float sigma1 = 0.5f*A*sinf(w*t);
-    float sigma2 = 0.5f*A*cosf(w*t);
-    Quaternion q_d_dot(0.5f*A*w*cosf(sigma1)*sinf(sigma2)*sinf(w*t) - 0.5f*A*w*sinf(sigma1)*cosf(sigma2)*cosf(w*t),
-                        0.5f*A*w*cosf(sigma1)*cosf(sigma2)*cosf(w*t) + 0.5f*A*w*sinf(sigma1)*sinf(sigma2)*sinf(w*t),
-                        -0.5f*A*w*cosf(sigma1)*cosf(sigma2)*sinf(w*t) - 0.5f*A*w*sinf(sigma1)*sinf(sigma2)*cosf(w*t),
-                        0.5f*A*w*sinf(sigma1)*cosf(sigma2)*sinf(w*t) - 0.5f*A*w*cosf(sigma1)*sinf(sigma2)*cosf(w*t));
+    // Quaternion q_d(cosf((A*cosf(t*w))/2.0f)*cosf((A*sinf(t*w))/2.0f), 
+    //                cosf((A*cosf(t*w))/2.0f)*sinf((A*sinf(t*w))/2.0f), 
+    //                cosf((A*sinf(t*w))/2.0f)*sinf((A*cosf(t*w))/2.0f),
+    //                -sinf((A*cosf(t*w))/2.0f)*sinf((A*sinf(t*w))/2.0f));
+
+    Quaternion q_d_dot((A*w*sinf(t*w)*cosf((A*sinf(t*w))/2.0f)*sinf((A*cosf(t*w))/2.0f))/2.0f - (A*w*cosf(t*w)*cosf((A*cosf(t*w))/2.0f)*sinf((A*sinf(t*w))/2.0f))/2.0f, 
+                       (A*w*cosf(t*w)*cosf((A*cosf(t*w))/2.0f)*cosf((A*sinf(t*w))/2.0f))/2.0f + (A*w*sinf(t*w)*sinf((A*cosf(t*w))/2.0f)*sinf((A*sinf(t*w))/2.0f))/2.0f,
+                       -(A*w*cosf((A*cosf(t*w))/2.0f)*sinf(t*w)*cosf((A*sinf(t*w))/2.0f))/2.0f - (A*w*cosf(t*w)*sinf((A*cosf(t*w))/2.0f)*sinf((A*sinf(t*w))/2.0f))/2.0f,
+                       (A*w*cosf((A*cosf(t*w))/2.0f)*sinf(t*w)*sinf((A*sinf(t*w))/2.0f))/2.0f - (A*w*cosf(t*w)*cosf((A*sinf(t*w))/2.0f)*sinf((A*cosf(t*w))/2.0f))/2.0f);
 
     Quaternion q_aux3 = q_d.inverse() * q_d_dot;
     Quaternion omega_d_quat(2*q_aux3.q1, 2*q_aux3.q2, 2*q_aux3.q3, 2*q_aux3.q4);
@@ -579,14 +584,23 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f omega_error;
     omega_error = omega - omega_d;
 
-  // Gain matrix
-    Matrix3f kp1(1.0, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 0.7);
+//   // Gain matrix
+//     Matrix3f kp1(1.0, 0.0f, 0.0f,
+//             0.0f, 1.0f, 0.0f,
+//             0.0f, 0.0f, 0.7);
 
-    Matrix3f kp2(0.2f, 0.0f, 0.0f,
-                0.0f, 0.2f, 0.0f,
-                0.0f, 0.0f, 0.5f);
+//     Matrix3f kp2(0.2f, 0.0f, 0.0f,
+//                 0.0f, 0.2f, 0.0f,
+//                 0.0f, 0.0f, 0.5f);
+
+    // Gain matrix
+    Matrix3f kp1(5.0, 0.0f, 0.0f,
+            0.0f, 5.0f, 0.0f,
+            0.0f, 0.0f, 5.0f);
+
+    Matrix3f kp2(0.1f, 0.0f, 0.0f,
+                0.0f, 0.1f, 0.0f,
+                0.0f, 0.0f, 0.1f);
 
     // Control law for the attitude controller
     Vector3f Tau = -kp1 * q_error_v - kp2 * omega_error;
