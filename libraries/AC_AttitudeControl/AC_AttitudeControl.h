@@ -243,6 +243,7 @@ public:
 
     // Run low level control and send outputs to the motors
     virtual void llc_controller_run() {}
+    virtual void llc_set_virtual_ctrl(const Vector3f& u_d, const Vector3f& u_d_dot) {}
 
     // reset target loop rate modifications
     virtual void rate_controller_target_reset() {}

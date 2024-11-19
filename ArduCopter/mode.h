@@ -1241,6 +1241,9 @@ public:
     bool has_manual_throttle() const override { return false; }
     bool is_autopilot() const override { return true; }
 
+    // For mavlink messages
+    void handle_mavlink_message(const mavlink_message_t *msg);
+
 protected:
 
     const char *name() const override { return "LOW_LEVEL_CONTROL"; }

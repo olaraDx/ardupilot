@@ -83,6 +83,7 @@ public:
 
     // run low level control and send outputs to the motors
     void llc_controller_run() override;
+    void llc_set_virtual_ctrl(const Vector3f& u_d, const Vector3f& u_d_dot) override;
 
     // sanity check parameters.  should be called once before take-off
     void parameter_sanity_check() override;
@@ -103,6 +104,8 @@ protected:
     Quaternion last_q_d;
     bool new_flight = true;
     float init_flight_time = 0;
+    Vector3f u_dx = {0.0f, 0.0f, 0.0f};
+    Vector3f u_dx_dot = {0.0f, 0.0f, 0.0f};
 
     // boost angle_p/pd each cycle on high throttle slew
     void update_throttle_gain_boost();

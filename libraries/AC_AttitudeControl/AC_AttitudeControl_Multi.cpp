@@ -499,7 +499,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     if(this->new_flight)
         init_flight_time = AP_HAL::millis() / 1000.0f;
-
+    
     float x_ref = 0.0f, y_ref = 0.0f, z_ref = 0.0f;
     float x_dot_ref = 0.0f, y_dot_ref = 0.0f;     
     float x_ddot_ref = 0.0f, y_ddot_ref = 0.0f;
@@ -556,11 +556,11 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // Gains for infinity
     Matrix3f kp(0.5f, 0.0f, 0.0f,
                 0.0f, 0.5f, 0.0f,
-                0.0f, 0.0f, 5.5f);
+                0.0f, 0.0f, 5.0f);
 
     Matrix3f kd(0.2f, 0.0f, 0.0f,
                 0.0f, 0.2f, 0.0f,
-                0.0f, 0.0f, 1.0f);
+                0.0f, 0.0f, 0.5f);
 
     Vector3f x(0.0f, 0.0f, 0.0f);
     Vector3f x_dot(0.0f, 0.0f, 0.0f);
@@ -748,6 +748,17 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         position_data << x_ddot[0] << " " << x_ddot[1] << " " << x_ddot[2] << std::endl; // x_ddot vector
     }
 }   
+
+// Update u_d and u_dot_d values received from the virtual controller via mavlink
+void AC_AttitudeControl_Multi::llc_set_virtual_ctrl(const Vector3f& u_d, const Vector3f& u_d_dot)
+{
+    this->u_dx = u_d;
+    this->u_dx_dot = u_d_dot;
+
+    std::cout << this->u_dx.x << " " << this->u_dx.y << " " << this->u_dx.z << std::endl;
+    std::cout << this->u_dx_dot.x << " " << this->u_dx_dot.y << " " << this->u_dx_dot.z << std::endl;
+}
+
 
 // sanity check parameters.  should be called once before takeoff
 void AC_AttitudeControl_Multi::parameter_sanity_check()
