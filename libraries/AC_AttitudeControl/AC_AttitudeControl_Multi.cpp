@@ -554,12 +554,12 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     float psi_dot_d = 0.0f;
 
     // Gains for infinity
-    Matrix3f kp(0.1f, 0.0f, 0.0f,
-                0.0f, 0.1f, 0.0f,
+    Matrix3f kp(0.8f, 0.0f, 0.0f,
+                0.0f, 0.8f, 0.0f,
                 0.0f, 0.0f, 5.0f);
 
-    Matrix3f kd(0.05f, 0.0f, 0.0f,
-                0.0f, 0.05f, 0.0f,
+    Matrix3f kd(0.6f, 0.0f, 0.0f,
+                0.0f, 0.6f, 0.0f,
                 0.0f, 0.0f, 0.5f);
 
     Vector3f x(0.0f, 0.0f, 0.0f);
@@ -575,10 +575,10 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f omega_d(0.0f, 0.0f, 0.0f);
     Quaternion q_d(1.0f, 0.0f, 0.0f, 0.0f);
 
-    x_d.x = 0.0f; x_d.y = 0.0f; 
-    x_dot_d.x = 0.0f; x_dot_d.y = 0.0f;
-    x_ddot_d.x = 0.0f; x_ddot_d.y = 0.0f;
-    x_dddot_d.x = 0.0f; x_dddot_d.y = 0.0f;
+    // x_d.x = 0.0f; x_d.y = 0.0f; 
+    // x_dot_d.x = 0.0f; x_dot_d.y = 0.0f;
+    // x_ddot_d.x = 0.0f; x_ddot_d.y = 0.0f;
+    // x_dddot_d.x = 0.0f; x_dddot_d.y = 0.0f;
     
 
     if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) {
