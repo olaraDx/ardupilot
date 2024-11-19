@@ -499,7 +499,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     if(this->new_flight)
         init_flight_time = AP_HAL::millis() / 1000.0f;
-
+    
     float x_ref = 0.0f, y_ref = 0.0f, z_ref = 0.0f;
     float x_dot_ref = 0.0f, y_dot_ref = 0.0f;     
     float x_ddot_ref = 0.0f, y_ddot_ref = 0.0f;
@@ -554,13 +554,13 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     float psi_dot_d = 0.0f;
 
     // Gains for infinity
-    Matrix3f kp(0.5f, 0.0f, 0.0f,
-                0.0f, 0.5f, 0.0f,
-                0.0f, 0.0f, 5.5f);
+    Matrix3f kp(0.1f, 0.0f, 0.0f,
+                0.0f, 0.1f, 0.0f,
+                0.0f, 0.0f, 5.0f);
 
-    Matrix3f kd(0.2f, 0.0f, 0.0f,
-                0.0f, 0.2f, 0.0f,
-                0.0f, 0.0f, 1.0f);
+    Matrix3f kd(0.05f, 0.0f, 0.0f,
+                0.0f, 0.05f, 0.0f,
+                0.0f, 0.0f, 0.5f);
 
     Vector3f x(0.0f, 0.0f, 0.0f);
     Vector3f x_dot(0.0f, 0.0f, 0.0f);
@@ -575,16 +575,18 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f omega_d(0.0f, 0.0f, 0.0f);
     Quaternion q_d(1.0f, 0.0f, 0.0f, 0.0f);
 
-    // x_d.x = 0.0f; x_d.y = 0.0f;
-    // x_dot_d.x = 0.0f; x_dot_d.y = 0.0f;
-    // x_ddot_d.x = 0.0f; x_ddot_d.y = 0.0f;
-    // x_dddot_d.x = 0.0f; x_dddot_d.y = 0.0f;
+    x_d.x = 0.0f; x_d.y = 0.0f; 
+    x_dot_d.x = 0.0f; x_dot_d.y = 0.0f;
+    x_ddot_d.x = 0.0f; x_ddot_d.y = 0.0f;
+    x_dddot_d.x = 0.0f; x_dddot_d.y = 0.0f;
     
 
     if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) {
         x_ddot = _ahrs.get_accel_ef();
         Vector3f u_d = -kp * (x - x_d) - kd * (x_dot - x_dot_d) - e_z * mass * g + x_ddot_d * mass;
         Vector3f u_dot_d = -kp * (x_dot - x_dot_d) - kd * (x_ddot- x_ddot_d) + x_dddot_d * mass;
+        std::cout << "u_d: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
+        std::cout << "u_dot_d: " << u_dot_d.x << " " << u_dot_d.y << " " << u_dot_d.z << std::endl;
         Vector3f u_d_norm = u_d.normalized();
         Vector3f u_dot_d_norm = u_dot_d / sqrtf(u_d * u_d) - u_d * (u_d * u_dot_d) / powf(u_d * u_d, 1.5f);
 
