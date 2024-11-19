@@ -104,6 +104,7 @@ protected:
     Quaternion last_q_d;
     bool new_flight = true;
     float init_flight_time = 0;
+    bool ref_received = false;
     Vector3f u_dx = {0.0f, 0.0f, 0.0f};
     Vector3f u_dx_dot = {0.0f, 0.0f, 0.0f};
 

@@ -486,6 +486,7 @@ void AC_AttitudeControl_Multi::rate_controller_run()
     // Set motors to use rate controller
     this->_motors.set_use_LLC(false);
     this->new_file = true;
+    this->ref_received = false;
 
     Vector3f gyro_latest = _ahrs.get_gyro_latest();
     rate_controller_run_dt(gyro_latest, _dt);
@@ -533,7 +534,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     x_ref = a * sinf(w * t);
     y_ref = bp * sinf(w * t) * cosf(w * t);
-    z_ref = 10.0f;
+    z_ref = 1.0f;
 
     x_dot_ref = a * w * cosf(w * t);
     y_dot_ref = bp * w * (cosf(w * t) * cosf(w * t) - sinf(w * t) * sinf(w * t));
@@ -575,16 +576,23 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f omega_d(0.0f, 0.0f, 0.0f);
     Quaternion q_d(1.0f, 0.0f, 0.0f, 0.0f);
 
-    // x_d.x = 0.0f; x_d.y = 0.0f;
-    // x_dot_d.x = 0.0f; x_dot_d.y = 0.0f;
-    // x_ddot_d.x = 0.0f; x_ddot_d.y = 0.0f;
-    // x_dddot_d.x = 0.0f; x_dddot_d.y = 0.0f;
+    x_d.x = 0.0f; x_d.y = 0.0f; 
+    x_dot_d.x = 0.0f; x_dot_d.y = 0.0f;
+    x_ddot_d.x = 0.0f; x_ddot_d.y = 0.0f;
+    x_dddot_d.x = 0.0f; x_dddot_d.y = 0.0f;
     
 
     if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) {
         x_ddot = _ahrs.get_accel_ef();
         Vector3f u_d = -kp * (x - x_d) - kd * (x_dot - x_dot_d) - e_z * mass * g + x_ddot_d * mass;
         Vector3f u_dot_d = -kp * (x_dot - x_dot_d) - kd * (x_ddot- x_ddot_d) + x_dddot_d * mass;
+        if(ref_received)
+        {
+            u_d = u_dx;
+            u_dot_d = u_dx_dot;
+        }
+        std::cout << "u_d: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
+        std::cout << "u_dot_d: " << u_dot_d.x << " " << u_dot_d.y << " " << u_dot_d.z << std::endl;
         Vector3f u_d_norm = u_d.normalized();
         Vector3f u_dot_d_norm = u_dot_d / sqrtf(u_d * u_d) - u_d * (u_d * u_dot_d) / powf(u_d * u_d, 1.5f);
 
@@ -754,6 +762,7 @@ void AC_AttitudeControl_Multi::llc_set_virtual_ctrl(const Vector3f& u_d, const V
 {
     this->u_dx = u_d;
     this->u_dx_dot = u_d_dot;
+    this->ref_received = true;
 
     std::cout << this->u_dx.x << " " << this->u_dx.y << " " << this->u_dx.z << std::endl;
     std::cout << this->u_dx_dot.x << " " << this->u_dx_dot.y << " " << this->u_dx_dot.z << std::endl;
