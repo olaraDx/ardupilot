@@ -519,7 +519,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     // Defining quaternions for trajectory tracking
     float t = AP_HAL::millis()/1E3;
-    float A = 0.17f, w = 1.0f;
+    float A = 0.34f, w = 2.0f;
     float roll_d = A*sinf(w*t), pitch_d = A*cosf(w*t);
 
     // The following code is the same as the commented code below
