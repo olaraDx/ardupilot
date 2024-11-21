@@ -527,9 +527,9 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     // Desired path
     Vector3f x_d(x_ref, y_ref, -z_ref);
-    Vector3f x_d_dot(x_dot_ref, y_dot_ref, z_dot_ref);
-    Vector3f x_d_ddot(x_ddot_ref, y_ddot_ref, z_ddot_ref);
-    Vector3f x_d_dddot(x_dddot_ref, y_dddot_ref, z_dddot_ref);
+    Vector3f x_d_dot(x_dot_ref, y_dot_ref, -z_dot_ref);
+    Vector3f x_d_ddot(x_ddot_ref, y_ddot_ref, -z_ddot_ref);
+    Vector3f x_d_dddot(x_dddot_ref, y_dddot_ref, -z_dddot_ref);
     float psi_d = 0.0f;
     float psi_d_dot = 0.0f;
 
@@ -555,7 +555,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     Matrix3f kd1(-0.5f, 0.0f, 0.0f,
                 0.0f, -0.5, 0.0f,
-                0.0f, 0.0f, -3.0f);
+                0.0f, 0.0f, -0.5f);
     
 
     if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) 
