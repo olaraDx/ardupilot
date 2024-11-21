@@ -525,6 +525,15 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     x_dddot_ref = -a * w * w * w * cosf(w * t);
     y_dddot_ref = -4 * bp * w * w * w * cosf(2.0f * w * t);
 
+
+    // Height path
+    float h = 2.0f;
+    float w2 = 0.2f;
+    z_ref = 10.0f + h * sinf(w2 * t);
+    z_dot_ref = h * w2 * cosf(w2 * t);
+    z_ddot_ref = -h * w2 * w2 * sinf(w2 * t);
+    z_dddot_ref = -h * w2 * w2 * w2 * cosf(w2 * t);
+
     // Desired path
     Vector3f x_d(x_ref, y_ref, -z_ref);
     Vector3f x_d_dot(x_dot_ref, y_dot_ref, -z_dot_ref);
@@ -551,7 +560,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // Control gains
     Matrix3f kp1(-1.0f, 0.0f, 0.0f,
                  0.0f, -1.0f, 0.0f,
-                 0.0f, 0.0f, -1.0f);
+                 0.0f, 0.0f, -3.0f);
 
     Matrix3f kd1(-0.5f, 0.0f, 0.0f,
                 0.0f, -0.5, 0.0f,
