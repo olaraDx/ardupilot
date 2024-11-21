@@ -527,8 +527,8 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
 
     // Height path
-    float h = 2.0f;
-    float w2 = 0.2f;
+    float h = 4.0f;
+    float w2 = 0.6f;
     z_ref = 10.0f + h * sinf(w2 * t);
     z_dot_ref = h * w2 * cosf(w2 * t);
     z_ddot_ref = -h * w2 * w2 * sinf(w2 * t);
@@ -569,10 +569,8 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) 
     {   
-        x_ddot = _ahrs.get_accel_ef(); // Acceleration in body frame
-        // Acceleration in NED home frame
-        Matrix3f R = _ahrs.get_rotation_body_to_ned();
-        x_ddot = R * x_ddot;
+        x_ddot = _ahrs.get_accel_ef(); // Acceleration in NED inertial frame
+        x_ddot = x_ddot + e_z*g;
 
         // Errors
         Vector3f xe = x - x_d;
@@ -612,9 +610,6 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         // Thrust
         T = u_d.length();      
     }
-
-    // q_d.q1 = 1.0f; q_d.q2 = 0.0f; q_d.q3 = 0.0f; q_d.q4 = 0.0f;
-    // omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
     
     // Quaternion q_body, q_d, q_error;
     Quaternion q_body, q_error;
@@ -753,9 +748,12 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         // Write time, x, x_d to file
         position_data << t << " "; // Time in seconds
         position_data << x[0] << " " << x[1] << " " << x[2] << " "; // x vector
-        position_data << x_d[0] << " " << x_d[1] << " " << x_d[2] << " "; // x_d vector
         position_data << x_dot[0] << " " << x_dot[1] << " " << x_dot[2] << " "; // x_dot vector
-        position_data << x_ddot[0] << " " << x_ddot[1] << " " << x_ddot[2] << std::endl; // x_ddot vector
+        position_data << x_ddot[0] << " " << x_ddot[1] << " " << x_ddot[2] << " "; // x_ddot vector
+        position_data << x_d[0] << " " << x_d[1] << " " << x_d[2] << " "; // x_d vector
+        position_data << x_d_dot[0] << " " << x_d_dot[1] << " " << x_d_dot[2] << " "; // x_d_dot vector
+        position_data << x_d_ddot[0] << " " << x_d_ddot[1] << " " << x_d_ddot[2] << " "; // x_d_ddot vector
+        position_data << x_d_dddot[0] << " " << x_d_dddot[1] << " " << x_d_dddot[2] << std::endl; // x_d_dddot vector
     }
 
     position_data.close();
