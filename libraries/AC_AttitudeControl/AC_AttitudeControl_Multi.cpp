@@ -553,18 +553,17 @@ void AC_AttitudeControl_Multi::llc_controller_run()
                  0.0f, -1.0f, 0.0f,
                  0.0f, 0.0f, -1.0f);
 
-    Matrix3f kd1(-0.1f, 0.0f, 0.0f,
-                0.0f, -0.1, 0.0f,
-                0.0f, 0.0f, -0.5f);
+    Matrix3f kd1(-0.5f, 0.0f, 0.0f,
+                0.0f, -0.5, 0.0f,
+                0.0f, 0.0f, -3.0f);
     
 
     if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) 
     {   
-        x_ddot = _ahrs.get_accel_ef();
-        // Matrix3f R = _ahrs.get_rotation_body_to_ned();
-        // R.transpose();
-        // // Acceleration expressed in NED frame
-        // x_ddot = R * x_ddot;
+        x_ddot = _ahrs.get_accel_ef(); // Acceleration in body frame
+        // Acceleration in NED home frame
+        Matrix3f R = _ahrs.get_rotation_body_to_ned();
+        x_ddot = R * x_ddot;
 
         // Errors
         Vector3f xe = x - x_d;
@@ -573,6 +572,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
         // Control law
         Vector3f u_d = kp1 * xe + kd1 * xe_dot - e_z * mass * g + x_d_ddot * mass;
+        // Vector3f u_d_dot = kp1 * xe_dot + x_d_dddot*mass;// + kd1 * xe_ddot + x_d_dddot * mass;
         Vector3f u_d_dot = kp1 * xe_dot + kd1 * xe_ddot + x_d_dddot * mass;
 
         // Desired attitude
@@ -656,13 +656,13 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     //             0.0f, 0.0f, 0.5f);
 
     // Gain matrix
-    Matrix3f k1(5.0, 0.0f, 0.0f,
-            0.0f, 5.0f, 0.0f,
-            0.0f, 0.0f, 5.0f);
+    Matrix3f k1(1.8, 0.0f, 0.0f,
+            0.0f, 1.8f, 0.0f,
+            0.0f, 0.0f, 1.3f);
 
-    Matrix3f k2(0.1f, 0.0f, 0.0f,
-                0.0f, 0.1f, 0.0f,
-                0.0f, 0.0f, 0.1f);
+    Matrix3f k2(0.2f, 0.0f, 0.0f,
+                0.0f, 0.2f, 0.0f,
+                0.0f, 0.0f, 0.2f);
 
     // Control law for the attitude controller
     Vector3f Tau = -k1 * q_error_v - k2 * omega_error;
