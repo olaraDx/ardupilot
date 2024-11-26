@@ -104,9 +104,10 @@ protected:
     Quaternion last_q_d;
     bool new_flight = true;
     float init_flight_time = 0;
+    float last_time = 0;
     bool ref_received = false;
-    Vector3f u_dx = {0.0f, 0.0f, 0.0f};
-    Vector3f u_dx_dot = {0.0f, 0.0f, 0.0f};
+    Vector3f u_d_received = {0.0f, 0.0f, 0.0f};
+    Vector3f u_d_dot_received = {0.0f, 0.0f, 0.0f};
 
     // boost angle_p/pd each cycle on high throttle slew
     void update_throttle_gain_boost();

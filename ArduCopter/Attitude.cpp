@@ -17,7 +17,7 @@ void Copter::run_rate_controller()
 
     // Check if we are in Low Level Control Mode and run the appropriate controller
     if(Copter::get_mode() == (uint8_t)Mode::Number::LLC) {
-        std::cout << "I'm in Low Level Control Mode" << std::endl;
+        // std::cout << "I'm in Low Level Control Mode" << std::endl;
         attitude_control->llc_controller_run();
     }
     else {

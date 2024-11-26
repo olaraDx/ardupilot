@@ -179,7 +179,7 @@ void Copter::motors_output()
     } else {
         // send output signals to motors
         flightmode->output_to_motors();
-        std::cout << "I'm in motors_output" << std::endl;
+        // std::cout << "I'm in motors_output" << std::endl;
         // if(flightmode->mode_number() == Mode::Number::LLC) {
         //     std::cout << "I'm in LLC mode jsjsjs" << std::endl;
         //     flightmode->output_to_motors();

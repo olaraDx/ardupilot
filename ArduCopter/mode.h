@@ -1243,6 +1243,9 @@ public:
 
     // For mavlink messages
     void handle_mavlink_message(const mavlink_message_t *msg);
+    // mavlink_message_t msg;
+    // mavlink_status_t status;
+    // mavlink_status_t status; mavlink_message_t msg; int chan = 0;
 
 protected:
 

@@ -486,7 +486,6 @@ void AC_AttitudeControl_Multi::rate_controller_run()
     // Set motors to use rate controller
     this->_motors.set_use_LLC(false);
     this->new_file = true;
-    this->ref_received = false;
 
     Vector3f gyro_latest = _ahrs.get_gyro_latest();
     rate_controller_run_dt(gyro_latest, _dt);
@@ -499,127 +498,109 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     this->_motors.set_use_LLC(true);
 
     if(this->new_flight)
-        init_flight_time = AP_HAL::millis() / 1000.0f;
+        init_flight_time = AP_HAL::millis() / 1E3;
     
-    float x_ref = 0.0f, y_ref = 0.0f, z_ref = 0.0f;
-    float x_dot_ref = 0.0f, y_dot_ref = 0.0f;     
-    float x_ddot_ref = 0.0f, y_ddot_ref = 0.0f;
-    float x_dddot_ref = 0.0f, y_dddot_ref = 0.0f;
+    float t = AP_HAL::millis() / 1E3 - init_flight_time;
+    float x_ref = 0.0f, y_ref = 0.0f, z_ref = 2.0f;
+    float x_dot_ref = 0.0f, y_dot_ref = 0.0f, z_dot_ref = 0.0f;
+    float x_ddot_ref = 0.0f, y_ddot_ref = 0.0f, z_ddot_ref = 0.0f;
+    float x_dddot_ref = 0.0f, y_dddot_ref = 0.0f, z_dddot_ref = 0.0f;
 
+    // Desired path
+    Vector3f x_d(x_ref, y_ref, -z_ref);
+    Vector3f x_d_dot(x_dot_ref, y_dot_ref, -z_dot_ref);
+    Vector3f x_d_ddot(x_ddot_ref, y_ddot_ref, -z_ddot_ref);
+    Vector3f x_d_dddot(x_dddot_ref, y_dddot_ref, -z_dddot_ref);
+    float psi_d = 0.0f;
+    float psi_d_dot = 0.0f;
 
-    float t = AP_HAL::millis() / 1000.0f - init_flight_time;
+    // Desired attitude initialization
+    Quaternion q_d(1.0f, 0.0f, 0.0f, 0.0f);
+    Vector3f omega_d(0.0f, 0.0f, 0.0f);
 
-    // 3D Circular Path
-    // float radius = 10.0f;
-    // float w = 0.2f;
-
-    // x_ref = radius * cosf(w * t) - 10.0f;
-    // y_ref = radius * sinf(w * t) + 0.0f;
-    // z_ref = 10.0f;
-
-    // x_dot_ref = -radius * w * sinf(w * t);
-    // y_dot_ref = radius * w * cosf(w * t);
-
-    // x_ddot_ref = -radius * w * w * cosf(w * t) ;
-    // y_ddot_ref = -radius * w * w * sinf(w * t);
-
-    // x_dddot_ref = radius * w * w * w * sinf(w * t);
-    // y_dddot_ref = -radius * w * w * w * cosf(w * t);
-
-    
-    // Infinity Symbol Path
-    float a = 20.0f; // semi-major axis
-    float bp = 10.0f; // semi-minor axis
-    float w = 0.2f; // angular frequency
-
-    x_ref = a * sinf(w * t);
-    y_ref = bp * sinf(w * t) * cosf(w * t);
-    z_ref = 1.0f;
-
-    x_dot_ref = a * w * cosf(w * t);
-    y_dot_ref = bp * w * (cosf(w * t) * cosf(w * t) - sinf(w * t) * sinf(w * t));
-
-    x_ddot_ref = -a * w * w * sinf(w * t);
-    y_ddot_ref = -4 * bp * w * w * cosf(w * t) * sinf(w * t);
-
-    x_dddot_ref = -a * w * w * w * cosf(w * t);
-    y_dddot_ref = -4 * bp * w * w * w * (cosf(w * t) * cosf(w * t) - sinf(w * t) * sinf(w * t));
-
-    // Virtual controller
-    Vector3f pos;
-    Vector3f vel;
+    // Parameters
     float mass = 0.2722f;
     float g = 9.81f;
     float T = mass*g;
-    float psi_d = 0.0f;
-    float psi_dot_d = 0.0f;
+    Vector3f e_z(0.0f, 0.0f, 1.0f);
 
-    // Gains for infinity
-    Matrix3f kp(0.5f, 0.0f, 0.0f,
-                0.0f, 0.5f, 0.0f,
-                0.0f, 0.0f, 5.0f);
-
-    Matrix3f kd(0.2f, 0.0f, 0.0f,
-                0.0f, 0.2f, 0.0f,
-                0.0f, 0.0f, 0.5f);
-
+    // Drone data initialization
     Vector3f x(0.0f, 0.0f, 0.0f);
     Vector3f x_dot(0.0f, 0.0f, 0.0f);
     Vector3f x_ddot(0.0f, 0.0f, 0.0f);
 
-    Vector3f x_d(x_ref, y_ref, -z_ref);
-    Vector3f x_dot_d(x_dot_ref, y_dot_ref, 0.0f);
-    Vector3f x_ddot_d(x_ddot_ref, y_ddot_ref, 0.0f);
-    Vector3f x_dddot_d(x_dddot_ref, y_dddot_ref, 0.0f);
+    // Control gains
+    Matrix3f kp1(-1.0f, 0.0f, 0.0f,
+                 0.0f, -1.0f, 0.0f,
+                 0.0f, 0.0f, -3.0f);
 
-    Vector3f e_z(0.0f, 0.0f, 1.0f);
-    Vector3f omega_d(0.0f, 0.0f, 0.0f);
-    Quaternion q_d(1.0f, 0.0f, 0.0f, 0.0f);
+    Matrix3f kd1(-0.5f, 0.0f, 0.0f,
+                0.0f, -0.5, 0.0f,
+                0.0f, 0.0f, -0.5f);
 
-    x_d.x = 0.0f; x_d.y = 0.0f; 
-    x_dot_d.x = 0.0f; x_dot_d.y = 0.0f;
-    x_ddot_d.x = 0.0f; x_ddot_d.y = 0.0f;
-    x_dddot_d.x = 0.0f; x_dddot_d.y = 0.0f;
+    
+    Vector3f u_d(0.0f, 0.0f, 0.0f);
+    Vector3f u_d_dot(0.0f, 0.0f, 0.0f);
     
 
-    if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) {
-        x_ddot = _ahrs.get_accel_ef();
-        Vector3f u_d = -kp * (x - x_d) - kd * (x_dot - x_dot_d) - e_z * mass * g + x_ddot_d * mass;
-        Vector3f u_dot_d = -kp * (x_dot - x_dot_d) - kd * (x_ddot- x_ddot_d) + x_dddot_d * mass;
+    if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) 
+    {   
+        x_ddot = _ahrs.get_accel_ef(); // Acceleration in NED inertial frame
+        x_ddot = x_ddot + e_z*g;
+
+        // Errors
+        Vector3f xe = x - x_d;
+        Vector3f xe_dot = x_dot - x_d_dot;
+        Vector3f xe_ddot = x_ddot - x_d_ddot;
+
+        // Control law
+        u_d = kp1 * xe + kd1 * xe_dot - e_z * mass * g + x_d_ddot * mass;
+        u_d_dot = kp1 * xe_dot + kd1 * xe_ddot + x_d_dddot * mass;
+
+        std::cout << "u_d: " << u_d.x << ", " << u_d.y << ", " << u_d.z << std::endl;
+
         if(ref_received)
         {
-            u_d = u_dx;
-            u_dot_d = u_dx_dot;
+            u_d = u_d_received;
+            u_d_dot = u_d_dot_received;
+            std::cout << "==============================================================================" << std::endl;
+            std::cout << "Reference received: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
+            std::cout << "Reference received: " << u_d_dot.x << " " << u_d_dot.y << " " << u_d_dot.z << std::endl;
+            std::cout << "==============================================================================" << std::endl;
         }
-        std::cout << "u_d: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
-        std::cout << "u_dot_d: " << u_dot_d.x << " " << u_dot_d.y << " " << u_dot_d.z << std::endl;
+
+        // Desired attitude
         Vector3f u_d_norm = u_d.normalized();
-        Vector3f u_dot_d_norm = u_dot_d / sqrtf(u_d * u_d) - u_d * (u_d * u_dot_d) / powf(u_d * u_d, 1.5f);
+        Vector3f u_d_dot_norm = u_d_dot / u_d.length() - u_d * (u_d * u_d_dot) / powf(u_d.length(), 3.0f);
 
-        Quaternion q_d_aux(1.0f/2.0f*sqrtf((-2.0f*u_d_norm.z + 2.0f))*cosf(psi_d/2.0f),
-                        (-u_d_norm.x*sinf(psi_d/2.0f) + u_d_norm.y*cosf(psi_d/2.0f))/sqrtf((-2.0f*u_d_norm.z + 2.0f)),
-                        (-u_d_norm.x*cosf(psi_d/2.0f) - u_d_norm.y*sinf(psi_d/2.0f))/sqrtf((-2.0f*u_d_norm.z + 2.0f)),
-                        1.0f/2.0f*sqrtf((-2.0f*u_d_norm.z + 2.0f))*sinf(psi_d/2.0f));
+        Quaternion q_dxy(1.0f/2.0f * sqrtf(-2*u_d_norm.z + 2),
+                         u_d_norm.y / sqrtf(-2*u_d_norm.z + 2),
+                         -u_d_norm.x / sqrtf(-2*u_d_norm.z + 2),
+                         0.0f);
+
+        Quaternion q_dz(cosf(psi_d/2.0f), 
+                             0.0f, 
+                             0.0f, 
+                             sinf(psi_d/2.0f));
+
+        q_d = q_dxy * q_dz;
         
-        Vector3f omega_d_aux(-sinf(psi_d)*u_dot_d_norm.x + cosf(psi_d)*u_dot_d_norm.y + u_dot_d_norm.z*(sinf(psi_d)*u_d_norm.x - cosf(psi_d)*u_d_norm.y)/(u_d_norm.z - 1.0f),
-                        -cosf(psi_d)*u_dot_d_norm.x - sinf(psi_d)*u_dot_d_norm.y + u_dot_d_norm.z*(cosf(psi_d)*u_d_norm.x + sinf(psi_d)*u_d_norm.y)/(u_d_norm.z - 1.0f),
-                        psi_dot_d + (u_d_norm.x*u_dot_d_norm.y - u_d_norm.y*u_dot_d_norm.x)/(u_d_norm.z - 1.0f));
+        omega_d = {-sinf(psi_d)*u_d_dot_norm.x + cosf(psi_d)*u_d_dot_norm.y + u_d_dot_norm.z*(sinf(psi_d)*u_d_norm.x - cosf(psi_d)*u_d_norm.y)/(u_d_norm.z - 1.0f),
+                             -cosf(psi_d)*u_d_dot_norm.x - sinf(psi_d)*u_d_dot_norm.y + u_d_dot_norm.z*(cosf(psi_d)*u_d_norm.x + sinf(psi_d)*u_d_norm.y)/(u_d_norm.z - 1.0f),
+                             psi_d_dot + (u_d_norm.x*u_d_dot_norm.y - u_d_norm.y*u_d_dot_norm.x)/(u_d_norm.z - 1.0f)};
 
-        q_d = q_d_aux;
-        omega_d = omega_d_aux;     
-        T = u_d.length();           
-    }   
-
-
+        // Thrust
+        T = u_d.length();      
+    }
+    
     // Quaternion q_body, q_d, q_error;
     Quaternion q_body, q_error;
     _ahrs.get_quat_body_to_ned(q_body);
-    _ang_vel_body += _sysid_ang_vel_body;
     _rate_gyro = _ahrs.get_gyro_latest();
 
-    // q_d.from_euler(0.0f, 0.0f, 0.0f);
-    // q_d.q1 = 1.0f; q_d.q2 = 0.0f; q_d.q3 = 0.0f; q_d.q4 = 0.0f;
-    // omega_d.x = 0.0f; omega_d.y = 0.0f; omega_d.z = 0.0f;
+
+    omega_d = {0.0f, 0.0f, 0.0f};
+
 
     // Normalizing quaternions
     q_d.normalize();
@@ -627,7 +608,6 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     if(this->new_flight) {
         last_q_body = q_body;
-        last_q_d = q_d;
         this->new_flight = false;
     }
 
@@ -662,17 +642,26 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f omega_error;
     omega_error = omega - omega_d;
 
-    // Gain matrix
-    Matrix3f kp1(5.0, 0.0f, 0.0f,
-            0.0f, 5.0f, 0.0f,
-            0.0f, 0.0f, 0.7f);
+  // Gain matrix
+    // Matrix3f k1(2.0, 0.0f, 0.0f,
+    //         0.0f, 2.0f, 0.0f,
+    //         0.0f, 0.0f, 0.7);
 
-    Matrix3f kp2(0.1f, 0.0f, 0.0f,
-                0.0f, 0.1f, 0.0f,
-                0.0f, 0.0f, 0.5f);
+    // Matrix3f k2(0.2f, 0.0f, 0.0f,
+    //             0.0f, 0.2f, 0.0f,
+    //             0.0f, 0.0f, 0.5f);
+
+    // Gain matrix
+    Matrix3f k1(1.8, 0.0f, 0.0f,
+            0.0f, 1.8f, 0.0f,
+            0.0f, 0.0f, 1.3f);
+
+    Matrix3f k2(0.2f, 0.0f, 0.0f,
+                0.0f, 0.2f, 0.0f,
+                0.0f, 0.0f, 0.2f);
 
     // Control law for the attitude controller
-    Vector3f Tau = -kp1 * q_error_v - kp2 * omega_error;
+    Vector3f Tau = -k1 * q_error_v - k2 * omega_error;
 
     // Control action
     float u[4] = {T, Tau[0], Tau[1], Tau[2]};
@@ -705,10 +694,10 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     // Print info
     // std::cout << "T: " << T << std::endl;
-    std::cout << "Tau: " << Tau[0] << " " << Tau[1] << " " << Tau[2] << std::endl;
-    std::cout << "u: " << u[0] << " " << u[1] << " " << u[2] << " " << u[3] << std::endl;
-    std::cout << "omega_motors: " << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << std::endl;
-
+    // std::cout << "Tau: " << Tau[0] << " " << Tau[1] << " " << Tau[2] << std::endl;
+    // std::cout << "u: " << u[0] << " " << u[1] << " " << u[2] << " " << u[3] << std::endl;
+    // std::cout << "omega_motors: " << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << std::endl;
+    
     // To create a new file with time stamp
     if(this->new_file) {
         // Time stamp
@@ -736,7 +725,9 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         attitude_data << omega_d.x << " " << omega_d.y << " " << omega_d.z << " "; // omega_d vector
         attitude_data << omega.x << " " << omega.y << " " << omega.z << " "; // omega vector
         attitude_data << u[0] << " " << u[1] << " " << u[2] << " " << u[3] << " "; // Control action
-        attitude_data << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << std::endl; // Motor angular velocities
+        attitude_data << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << " "; // Motor angular velocities
+        attitude_data << u_d.x << " " << u_d.y << " " << u_d.z << " "; // u_d vector
+        attitude_data << u_d_dot.x << " " << u_d_dot.y << " " << u_d_dot.z << std::endl; // u_d_dot vector
     }
 
     attitude_data.close();
@@ -751,23 +742,31 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         // Write time, x, x_d to file
         position_data << t << " "; // Time in seconds
         position_data << x[0] << " " << x[1] << " " << x[2] << " "; // x vector
-        position_data << x_d[0] << " " << x_d[1] << " " << x_d[2] << " "; // x_d vector
         position_data << x_dot[0] << " " << x_dot[1] << " " << x_dot[2] << " "; // x_dot vector
-        position_data << x_ddot[0] << " " << x_ddot[1] << " " << x_ddot[2] << std::endl; // x_ddot vector
+        position_data << x_ddot[0] << " " << x_ddot[1] << " " << x_ddot[2] << " "; // x_ddot vector
+        position_data << x_d[0] << " " << x_d[1] << " " << x_d[2] << " "; // x_d vector
+        position_data << x_d_dot[0] << " " << x_d_dot[1] << " " << x_d_dot[2] << " "; // x_d_dot vector
+        position_data << x_d_ddot[0] << " " << x_d_ddot[1] << " " << x_d_ddot[2] << " "; // x_d_ddot vector
+        position_data << x_d_dddot[0] << " " << x_d_dddot[1] << " " << x_d_dddot[2] << std::endl; // x_d_dddot vector
     }
+
+    position_data.close();
 }   
 
-// Update u_d and u_dot_d values received from the virtual controller via mavlink
+// Recived the desired position and orientation
 void AC_AttitudeControl_Multi::llc_set_virtual_ctrl(const Vector3f& u_d, const Vector3f& u_d_dot)
 {
-    this->u_dx = u_d;
-    this->u_dx_dot = u_d_dot;
+    // Set the desired position and orientation
+    this->u_d_received = u_d;
+    this->u_d_dot_received = u_d_dot;
     this->ref_received = true;
-
-    std::cout << this->u_dx.x << " " << this->u_dx.y << " " << this->u_dx.z << std::endl;
-    std::cout << this->u_dx_dot.x << " " << this->u_dx_dot.y << " " << this->u_dx_dot.z << std::endl;
+    float delta_t = AP_HAL::millis() / 1E3 - last_time;
+    last_time = AP_HAL::millis() / 1E3;
+    std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
+    std::cout << "Reference received" << std::endl;
+    std::cout << "Time: " << delta_t << std::endl;
+    std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
 }
-
 
 // sanity check parameters.  should be called once before takeoff
 void AC_AttitudeControl_Multi::parameter_sanity_check()
