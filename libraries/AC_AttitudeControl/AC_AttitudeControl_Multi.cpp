@@ -618,16 +618,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         q_body.q3 = -q_body.q3;
         q_body.q4 = -q_body.q4;
     }
-
-    if(q_d.q1*last_q_d.q1 + q_d.q2*last_q_d.q2 + q_d.q3*last_q_d.q3 + q_d.q4*last_q_d.q4 < 0.0f) {
-        q_d.q1 = -q_d.q1;
-        q_d.q2 = -q_d.q2;
-        q_d.q3 = -q_d.q3;
-        q_d.q4 = -q_d.q4;
-    }
-
     last_q_body = q_body;
-    last_q_d = q_d;
 
     // Quaternion error
     q_error = q_d.inverse() * q_body;
@@ -635,21 +626,12 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     // Rates
     Vector3f omega(_rate_gyro.x, _rate_gyro.y, _rate_gyro.z);
-    // Vector3f omega(_ang_vel_body.x, _ang_vel_body.y, _ang_vel_body.z);
 
     // Rate error
     Vector3f q_error_v(q_error.q2, q_error.q3, q_error.q4);
     Vector3f omega_error;
     omega_error = omega - omega_d;
 
-  // Gain matrix
-    // Matrix3f k1(2.0, 0.0f, 0.0f,
-    //         0.0f, 2.0f, 0.0f,
-    //         0.0f, 0.0f, 0.7);
-
-    // Matrix3f k2(0.2f, 0.0f, 0.0f,
-    //             0.0f, 0.2f, 0.0f,
-    //             0.0f, 0.0f, 0.5f);
 
     // Gain matrix
     Matrix3f k1(1.8, 0.0f, 0.0f,
