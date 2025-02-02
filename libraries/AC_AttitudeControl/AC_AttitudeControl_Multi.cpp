@@ -557,7 +557,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         u_d = kp1 * xe + kd1 * xe_dot - e_z * mass * g + x_d_ddot * mass;
         u_d_dot = kp1 * xe_dot + kd1 * xe_ddot + x_d_dddot * mass;
 
-        std::cout << "u_d: " << u_d.x << ", " << u_d.y << ", " << u_d.z << std::endl;
+        // std::cout << "u_d: " << u_d.x << ", " << u_d.y << ", " << u_d.z << std::endl;
 
         if(ref_received)
         {

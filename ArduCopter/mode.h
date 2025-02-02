@@ -134,6 +134,7 @@ public:
     virtual bool allows_autotune() const { return false; }
     virtual bool allows_flip() const { return false; }
     virtual bool crash_check_enabled() const { return true; }
+    virtual bool handle_message(const mavlink_message_t &msg) { return false; }  // retorna false por defecto
 
 #if ADVANCED_FAILSAFE
     // Return the type of this mode for use by advanced failsafe
@@ -1241,19 +1242,17 @@ public:
     bool has_manual_throttle() const override { return false; }
     bool is_autopilot() const override { return true; }
 
-    // For mavlink messages
-    void handle_mavlink_message(const mavlink_message_t *msg);
-    // mavlink_message_t msg;
-    // mavlink_status_t status;
-    // mavlink_status_t status; mavlink_message_t msg; int chan = 0;
 
 protected:
-
     const char *name() const override { return "LOW_LEVEL_CONTROL"; }
     const char *name4() const override { return "LLC"; }
 
 private:
-
+    Vector3f _force_target;
+    Vector3f _force_target_derivative;
+    bool _have_new_force_target;
+    uint32_t _last_force_target_ms;
+    bool handle_message(const mavlink_message_t &msg) override;
 };
 
 
