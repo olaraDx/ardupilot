@@ -1,5 +1,5 @@
 #include "Copter.h"
-#include <iostream>
+// #include <iostream>
 
 #define ARM_DELAY               20  // called at 10hz so 2 seconds
 #define DISARM_DELAY            20  // called at 10hz so 2 seconds

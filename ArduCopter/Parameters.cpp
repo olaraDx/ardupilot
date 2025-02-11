@@ -257,6 +257,7 @@ const AP_Param::Info Copter::var_info[] = {
     // @CopyFieldsFrom: FLTMODE1
     // @DisplayName: Flight Mode 2
     // @Description: Flight mode when pwm of Flightmode channel(FLTMODE_CH) is >1230, <= 1360
+    // @Values: 29:Low_Level_Control 
     GSCALAR(flight_mode2, "FLTMODE2",               (uint8_t)FLIGHT_MODE_2),
 
     // @Param: FLTMODE3

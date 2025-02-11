@@ -1,5 +1,5 @@
 #include "Copter.h"
-#include <iostream>
+// #include <iostream>
 
 /*************************************************************
  *  Attitude Rate controllers and timing

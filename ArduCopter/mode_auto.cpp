@@ -1,5 +1,4 @@
 #include "Copter.h"
-#include <iostream>
 
 #if MODE_AUTO_ENABLED
 
@@ -907,9 +906,6 @@ bool ModeAuto::verify_command(const AP_Mission::Mission_Command& cmd)
     }
 
     bool cmd_complete = false;
-
-    // xddd
-    std::cout << "verify_command: " << cmd.id << std::endl;
 
     switch (cmd.id) {
     //
