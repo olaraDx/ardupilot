@@ -320,6 +320,69 @@ const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("THR_G_BOOST", 7, AC_AttitudeControl_Multi, _throttle_gain_boost, 0.0f),
 
+    // @Param: LLC_THR
+    // @DisplayName: Low Level Control Throttle
+    // @Description: Low Level Control Throttle
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_THR", 8, AC_AttitudeControl_Multi, _llc_thr, 0.0f),
+
+    // @Param: LLC_RPP_GAIN
+    // @DisplayName: Low Level Control Roll/Pitch Position Gain
+    // @Description: Low Level Control Roll/Pitch Position Gain
+    // @Range: 0.0 15.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_RPP_GAIN", 9, AC_AttitudeControl_Multi, _llc_rpp_gain, 1.8f),
+
+    // @Param: LLC_RPD_GAIN
+    // @DisplayName: Low Level Control Roll/Pitch Derivative Gain
+    // @Description: Low Level Control Roll/Pitch Derivative Gain
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_RPD_GAIN", 10, AC_AttitudeControl_Multi, _llc_rpd_gain, 0.2f),
+
+    // @Param: LLC_YP_GAIN
+    // @DisplayName: Low Level Control Yaw Position Gain
+    // @Description: Low Level Control Yaw Position Gain
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_YP_GAIN", 11, AC_AttitudeControl_Multi, _llc_yp_gain, 1.3f),
+
+    // @Param: LLC_YD_GAIN
+    // @DisplayName: Low Level Control Yaw Derivative Gain
+    // @Description: Low Level Control Yaw Derivative Gain
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_YD_GAIN", 12, AC_AttitudeControl_Multi, _llc_yd_gain, 0.2f),
+
+    // @Param: LLC_ZPOS
+    // @DisplayName: Low Level Control Z Position
+    // @Description: Low Level Control Z Position
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_ZPOS", 13, AC_AttitudeControl_Multi, _llc_zpos, 0.2f),
+
+    // @Param: LLC_USE_FTHR
+    // @DisplayName: Flag to use fixed throttle
+    // @Description: Flag to use fixed throttle
+    // @Values: 0:Disabled,1:Enabled
+    // @User: Advanced
+    AP_GROUPINFO("LLC_USE_FTHR", 14, AC_AttitudeControl_Multi, _llc_use_fthr, 0),
+
+    // @Param: LLC_ZP_GAIN
+    // @DisplayName: Low Level Control Z Position Gain
+    // @Description: Low Level Control Z Position Gain
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_ZP_GAIN", 15, AC_AttitudeControl_Multi, _llc_zp_gain, 1.0f),
+
+    // @Param: LLC_ZD_GAIN
+    // @DisplayName: Low Level Control Z Derivative Gain
+    // @Description: Low Level Control Z Derivative Gain
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_ZD_GAIN", 16, AC_AttitudeControl_Multi, _llc_zd_gain, 0.5f),
+
     AP_GROUPEND
 };
 
@@ -501,7 +564,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         init_flight_time = AP_HAL::millis() / 1E3;
     
     // float t = AP_HAL::millis() / 1E3 - init_flight_time;
-    float x_ref = 0.0f, y_ref = 0.0f, z_ref = 2.0f;
+    float x_ref = 0.0f, y_ref = 0.0f, z_ref = (float)_llc_zpos;
     float x_dot_ref = 0.0f, y_dot_ref = 0.0f, z_dot_ref = 0.0f;
     float x_ddot_ref = 0.0f, y_ddot_ref = 0.0f, z_ddot_ref = 0.0f;
     float x_dddot_ref = 0.0f, y_dddot_ref = 0.0f, z_dddot_ref = 0.0f;
@@ -511,15 +574,15 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f x_d_dot(x_dot_ref, y_dot_ref, -z_dot_ref);
     Vector3f x_d_ddot(x_ddot_ref, y_ddot_ref, -z_ddot_ref);
     Vector3f x_d_dddot(x_dddot_ref, y_dddot_ref, -z_dddot_ref);
-    float psi_d = 0.0f;
-    float psi_d_dot = 0.0f;
+    // float psi_d = 0.0f;
+    // float psi_d_dot = 0.0f;
 
     // Desired attitude initialization
     Quaternion q_d(1.0f, 0.0f, 0.0f, 0.0f);
     Vector3f omega_d(0.0f, 0.0f, 0.0f);
 
     // Parameters
-    float mass = 0.520;
+    float mass = 0.2722f;
     float g = 9.81f;
     float T = mass*g;
     Vector3f e_z(0.0f, 0.0f, 1.0f);
@@ -529,15 +592,18 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f x_dot(0.0f, 0.0f, 0.0f);
     Vector3f x_ddot(0.0f, 0.0f, 0.0f);
 
+    
     // Control gains
-    Matrix3f kp1(-1.0f, 0.0f, 0.0f,
-                 0.0f, -1.0f, 0.0f,
-                 0.0f, 0.0f, -3.0f);
-
-    Matrix3f kd1(-0.5f, 0.0f, 0.0f,
-                0.0f, -0.5, 0.0f,
-                0.0f, 0.0f, -0.5f);
-
+    Matrix3f kp1((float)1.0f, 0.0f, 0.0f,
+    0.0f, (float)1.0f, 0.0f,
+    0.0f, 0.0f, (float)_llc_zp_gain);
+    
+    Matrix3f kd1((float)0.5f, 0.0f, 0.0f,
+    0.0f, (float)0.5f, 0.0f,
+    0.0f, 0.0f, (float)_llc_zd_gain);
+    
+    // std::cout << "_llc_zp_gain: " << _llc_zp_gain << std::endl;
+    // std::cout << "_llc_zd_gain: " << _llc_zd_gain << std::endl;
     
     Vector3f u_d(0.0f, 0.0f, 0.0f);
     Vector3f u_d_dot(0.0f, 0.0f, 0.0f);
@@ -546,15 +612,15 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Quaternion q_body, q_error;
     _ahrs.get_quat_body_to_ned(q_body);
     _rate_gyro = _ahrs.get_gyro_latest();
-
-
+    
+    
     omega_d = {0.0f, 0.0f, 0.0f};
-
-
+    
+    
     // Normalizing quaternions
     q_d.normalize();
     q_body.normalize();
-
+    
     if(this->new_flight) {
         last_q_body = q_body;
         this->new_flight = false;
@@ -568,87 +634,68 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         q_body.q4 = -q_body.q4;
     }
     last_q_body = q_body;
-
+    
+    Vector3f u_recv = {0.0f, 0.0f, 0.0f};
+    Vector3f u_recv_trf = {0.0f, 0.0f, 0.0f};
+    
     if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) 
     {   
         x_ddot = _ahrs.get_accel_ef(); // Acceleration in NED inertial frame
         x_ddot = x_ddot + e_z*g;
-
+        
         // Errors
         Vector3f xe = x - x_d;
         Vector3f xe_dot = x_dot - x_d_dot;
         Vector3f xe_ddot = x_ddot - x_d_ddot;
-
+        
         // Control law
-        u_d = kp1 * xe + kd1 * xe_dot - e_z * mass * g + x_d_ddot * mass;
-        u_d_dot = kp1 * xe_dot + kd1 * xe_ddot + x_d_dddot * mass;
-
-        // std::cout << "u_d: " << u_d.x << ", " << u_d.y << ", " << u_d.z << std::endl;
-
+        u_d = -kp1 * xe - kd1 * xe_dot - e_z * mass * g + x_d_ddot * mass;
+        u_d_dot = -kp1 * xe_dot - kd1 * xe_ddot + x_d_dddot * mass;
+        
+        // For tunning ONLY
+        u_d.x = 0.0f;
+        u_d.y = 0.0f;
+        
         if(ref_received)
         {
             u_d = u_d_received;
-            // std::cout << "Reference received: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
+            u_recv = u_d;
             u_d_dot = u_d_dot_received;
-            // Quaternion ud_q(0.0f, u_d.x, u_d.y, u_d.z);
-            // Quaternion ud_ned = q_body * ud_q * q_body.inverse() ;
-            // u_d = {ud_ned.q2, ud_ned.q3, ud_ned.q4};
-            // u_d magnitude
-            // std::cout << "Reference received magnitude: " << u_d.length() << std::endl;
             Matrix3f R =  _ahrs.get_rotation_body_to_ned();
             R.normalize();
-            // std::cout << "R = " << R.a.x << " " << R.a.y << " " << R.a.z << std::endl;
-            // std::cout << R.b.x << " " << R.b.y << " " << R.b.z << std::endl;
-            // std::cout << R.c.x << " " << R.c.y << " " << R.c.z << std::endl;
             u_d = R * u_d;
-            // std::cout << "Reference received transformed: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
-            // std::cout << "Reference received transformed magnitude: " << u_d.length() << std::endl;
-            // R.transpose();
-            // u_d = R * u_d;
-            // std::cout << "Reference received transformed back: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
+            u_recv_trf = u_d;
             
-            // std::cout << "==============================================================================" << std::endl;
-            // std::cout << "Reference received: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
-            // std::cout << "Reference received: " << u_d_dot.x << " " << u_d_dot.y << " " << u_d_dot.z << std::endl;
-            // std::cout << "==============================================================================" << std::endl;
         }
-
-        // Desired attitude
-        Vector3f u_d_norm = u_d.normalized();
-        Vector3f u_d_dot_norm = u_d_dot / u_d.length() - u_d * (u_d * u_d_dot) / powf(u_d.length(), 3.0f);
-
-        Quaternion q_dxy(1.0f/2.0f * sqrtf(-2*u_d_norm.z + 2),
-                         u_d_norm.y / sqrtf(-2*u_d_norm.z + 2),
-                         -u_d_norm.x / sqrtf(-2*u_d_norm.z + 2),
-
-                         0.0f);
-
-        Quaternion q_dz(cosf(psi_d/2.0f), 
-                             0.0f, 
-                             0.0f, 
-                             sinf(psi_d/2.0f));
-
-        q_d = q_dxy * q_dz;
         
-        omega_d = {-sinf(psi_d)*u_d_dot_norm.x + cosf(psi_d)*u_d_dot_norm.y + u_d_dot_norm.z*(sinf(psi_d)*u_d_norm.x - cosf(psi_d)*u_d_norm.y)/(u_d_norm.z - 1.0f),
-                             -cosf(psi_d)*u_d_dot_norm.x - sinf(psi_d)*u_d_dot_norm.y + u_d_dot_norm.z*(cosf(psi_d)*u_d_norm.x + sinf(psi_d)*u_d_norm.y)/(u_d_norm.z - 1.0f),
-                             psi_d_dot + (u_d_norm.x*u_d_dot_norm.y - u_d_norm.y*u_d_dot_norm.x)/(u_d_norm.z - 1.0f)};
-
+        // // Desired attitude
+        // Vector3f u_d_norm = u_d.normalized();
+        // Vector3f u_d_dot_norm = u_d_dot / u_d.length() - u_d * (u_d * u_d_dot) / powf(u_d.length(), 3.0f);
+        
+        // std::cout << "Debuuuuuuuuuuuuuug111" << std::endl;
+        // Quaternion q_dxy(1.0f/2.0f * sqrtf(-2.0f*u_d_norm.z + 2.0f),
+        //                  u_d_norm.y / sqrtf(-2.0f*u_d_norm.z + 2.0f),
+        //                  -u_d_norm.x / sqrtf(-2.0f*u_d_norm.z + 2.0f),
+        //                  0.0f);
+                         
+        // std::cout << "Debuuuuuuuuuuuuuug222" << std::endl;
+        // Quaternion q_dz(cosf(psi_d/2.0f), 
+        //                      0.0f, 
+        //                      0.0f, 
+        //                      sinf(psi_d/2.0f));
+        // std::cout << "Debuuuuuuuuuuuuuug333" << std::endl;  
+        // q_d = q_dxy * q_dz;
+        // std::cout << "Debuuuuuuuuuuuuuug444" << std::endl;  
+        // omega_d = {-sinf(psi_d)*u_d_dot_norm.x + cosf(psi_d)*u_d_dot_norm.y + u_d_dot_norm.z*(sinf(psi_d)*u_d_norm.x - cosf(psi_d)*u_d_norm.y)/(u_d_norm.z - 1.0f),
+        //     -cosf(psi_d)*u_d_dot_norm.x - sinf(psi_d)*u_d_dot_norm.y + u_d_dot_norm.z*(cosf(psi_d)*u_d_norm.x + sinf(psi_d)*u_d_norm.y)/(u_d_norm.z - 1.0f),
+        //     psi_d_dot + (u_d_norm.x*u_d_dot_norm.y - u_d_norm.y*u_d_dot_norm.x)/(u_d_norm.z - 1.0f)};
+            
+        // std::cout << "Debuuuuuuuuuuuuuug555" << std::endl;  
         // Thrust
-        T = u_d.length();      
+        T = u_d.length();    
     }
     
-    // if(!ref_received)
-    // {
-    //     // pi/4 yaw
-    //     // q_d = Quaternion(0.9239f, 0.0f, 0.0f, 0.3827f);
-    //     // -pi/yaw
-    //     // q_d = Quaternion(0.7071f, 0.0f, 0.0f, -0.7071f);
-    //     // -pi/4 yaw
-    //     q_d = Quaternion(0.9239f, 0.0f, 0.0f, -0.3827f);
-    // }
-
-    q_d.q1 = 1.0f; q_d.q2 = 0.0f; q_d.q3 = 0.0f; q_d.q4 = 0.0f;
+    q_d = Quaternion(1.0f, 0.0f, 0.0f, 0.0f);
     q_error = q_d.inverse() * q_body;
     _attitude_ang_error = q_error;
 
@@ -660,27 +707,33 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f omega_error;
     omega_error = omega - omega_d;
 
-
     // Gain matrix
-    Matrix3f k1(2.0, 0.0f, 0.0f,
-            0.0f, 2.0f, 0.0f,
-            0.0f, 0.0f, 2.0f);
+    Matrix3f k1((float)_llc_rpp_gain, 0.0f, 0.0f,
+        0.0f, (float)_llc_rpp_gain, 0.0f,
+        0.0f, 0.0f, (float)_llc_yp_gain);
 
-    // k1 = k1*0.0f;
+    Matrix3f k2((float)_llc_rpd_gain, 0.0f, 0.0f,
+                0.0f, (float)_llc_rpd_gain, 0.0f,
+                0.0f, 0.0f, (float)_llc_yd_gain);
 
-    Matrix3f k2(0.2f, 0.0f, 0.0f,
-                0.0f, 0.2f, 0.0f,
-                0.0f, 0.0f, 0.2f);
+    // std::cout << "k1: " << _llc_rpp_gain << " " << _llc_rpp_gain << " " << _llc_yp_gain << std::endl;
+    // std::cout << "k2: " << _llc_rpd_gain << " " << _llc_rpd_gain << " " << _llc_yd_gain << std::endl;
+    // std::cout << "thr: " << _llc_thr << std::endl;
+    // std::cout << "zpos: " << _llc_zpos << std::endl;
+    // std::cout << "zref: " << z_ref << std::endl;
+    // std::cout << "zp_gain: " << _llc_zp_gain << std::endl;
+    // std::cout << "zd_gain: " << _llc_zd_gain << std::endl;
 
-
-    k2 = k2*0.0f;
     // Control law for the attitude controller
     Vector3f Tau = -k1 * q_error_v - k2 * omega_error;
 
+    if(_llc_use_fthr)
+    {
+        T = (float)_llc_thr;
+    }
+
     // Control action
-    T = mass*g*0.3f;
     float u[4] = {T, Tau[0], Tau[1], Tau[2]};
-    // float u[4] = {T, 0.0f, 0.0f, 0.0f};
 
     // Motor angular velocities computation
     // l -> d: distance from the center of the drone to the propellers
@@ -701,23 +754,11 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         omega_motors[i] = omega_motors[i] > 1.0f ? 1.0f : omega_motors[i];
     }
 
-    // for(int i = 0; i < 4; i++){
-    //     // Limit omega_motors
-    //     omega_motors[i] = omega_motors[i] < 0.0f ? 0.0f : sqrtf(omega_motors[i])/3220.0f;
-    //     omega_motors[i] = omega_motors[i] > 1.0f ? 1.0f : omega_motors[i];
-    // }
-    
-
     // Send motor angular velocities to the motors
     this->_motors.set_omega1(omega_motors[0]);
     this->_motors.set_omega2(omega_motors[1]);
     this->_motors.set_omega3(omega_motors[2]);
     this->_motors.set_omega4(omega_motors[3]);
-
-    // this->_motors.set_omega1(0.0f);
-    // this->_motors.set_omega2(0.0f);
-    // this->_motors.set_omega3(0.5f);
-    // this->_motors.set_omega4(0.0f);
 
     // Print info
     // std::cout << "T: " << T << std::endl;
@@ -738,26 +779,22 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     //     this->pos_filename = "/home/olara/Desktop/plots_ap/position_data/position_data_" + std::string(timestamp) + ".txt";
     // }
 
-    // // Open file to save q_d, q_body, q_error along with time
-    // std::ofstream attitude_data(this->att_filename, std::ios_base::app);
+    // if(ref_received)
+    // {
+    //     // Open file to save q_d, q_body, q_error along with time
+    //     std::ofstream attitude_data(this->att_filename, std::ios_base::app);
 
-    // if (!attitude_data.is_open()) {
-    //     std::cerr << "Error opening file" << std::endl;
-    // } else {
-    //     // Write time, q_d, q_body, q_error to file
-    //     attitude_data << t << " "; // Time in seconds
-    //     attitude_data << q_d.q1 << " " << q_d.q2 << " " << q_d.q3 << " " << q_d.q4 << " "; // q_d quaternion
-    //     attitude_data << q_body.q1 << " " << q_body.q2 << " " << q_body.q3 << " " << q_body.q4 << " "; // q_body quaternion
-    //     attitude_data << q_error.q1 << " " << q_error.q2 << " " << q_error.q3 << " " << q_error.q4 << " "; // q_error quaternion
-    //     attitude_data << omega_d.x << " " << omega_d.y << " " << omega_d.z << " "; // omega_d vector
-    //     attitude_data << omega.x << " " << omega.y << " " << omega.z << " "; // omega vector
-    //     attitude_data << u[0] << " " << u[1] << " " << u[2] << " " << u[3] << " "; // Control action
-    //     attitude_data << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << " "; // Motor angular velocities
-    //     attitude_data << u_d.x << " " << u_d.y << " " << u_d.z << " "; // u_d vector
-    //     attitude_data << u_d_dot.x << " " << u_d_dot.y << " " << u_d_dot.z << std::endl; // u_d_dot vector
+    //     if (!attitude_data.is_open()) {
+    //         std::cerr << "Error opening file" << std::endl;
+    //     } else {
+    //         // Write time, q_d, q_body, q_error to file
+    //         attitude_data << t << " "; // Time in seconds
+    //         attitude_data << u_recv.x << " " << u_recv.y << " " << u_recv.z << " "; // u_d vector
+    //         attitude_data << u_recv_trf.x << " " << u_recv_trf.y << " " << u_recv_trf.z << std::endl; // u_d vector
+    //     }
+
+    //     attitude_data.close();
     // }
-
-    // attitude_data.close();
 
     // // Open file to save position
     // std::ofstream position_data(this->pos_filename, std::ios_base::app);

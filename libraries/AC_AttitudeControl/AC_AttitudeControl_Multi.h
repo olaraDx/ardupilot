@@ -38,7 +38,34 @@
 #ifndef AC_ATC_MULTI_RATE_YAW_FILT_HZ
  # define AC_ATC_MULTI_RATE_YAW_FILT_HZ     2.5f
 #endif
-
+// Custom LLC Tunning Parameters
+#ifndef LLC_THR
+ # define LLC_THR                          0.0f
+#endif
+#ifndef LLC_RPP_GAIN
+ # define LLC_RPP_GAIN                      1.8f
+#endif
+#ifndef LLC_RPD_GAIN
+ # define LLC_RPD_GAIN                      0.2f
+#endif
+#ifndef LLC_YAWP_GAIN
+ # define LLC_YAWP_GAIN                     1.3f
+#endif
+#ifndef LLC_YD_GAIN
+ # define LLC_YD_GAIN                     0.2f
+#endif
+#ifndef LLC_ZPOS
+ # define LLC_ZPOS                     0.2f
+#endif
+#ifndef LLC_USE_FTHR
+ # define LLC_USE_FTHR                     0
+#endif
+#ifndef LLC_ZP_GAIN
+ # define LLC_ZP_GAIN                     1.0f
+#endif
+#ifndef LLC_ZD_GAIN
+ # define LLC_ZD_GAIN                     0.5f
+#endif
 
 class AC_AttitudeControl_Multi : public AC_AttitudeControl {
 public:
@@ -108,6 +135,16 @@ protected:
     bool ref_received = false;
     Vector3f u_d_received = {0.0f, 0.0f, 0.0f};
     Vector3f u_d_dot_received = {0.0f, 0.0f, 0.0f};
+    // Custom LLC Tunning Parameters
+    AP_Float _llc_thr;
+    AP_Float _llc_rpp_gain;
+    AP_Float _llc_rpd_gain;
+    AP_Float _llc_yp_gain;
+    AP_Float _llc_yd_gain;
+    AP_Float _llc_zp_gain;
+    AP_Float _llc_zd_gain;
+    AP_Float _llc_zpos;
+    AP_Int8  _llc_use_fthr;
 
     // boost angle_p/pd each cycle on high throttle slew
     void update_throttle_gain_boost();
