@@ -600,11 +600,11 @@ void AC_AttitudeControl_Multi::llc_controller_run()
             // std::cout << "R = " << R.a.x << " " << R.a.y << " " << R.a.z << std::endl;
             // std::cout << R.b.x << " " << R.b.y << " " << R.b.z << std::endl;
             // std::cout << R.c.x << " " << R.c.y << " " << R.c.z << std::endl;
-            u_d = R * u_d;
+            // u_d = R * u_d;
             // std::cout << "Reference received transformed: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
             // std::cout << "Reference received transformed magnitude: " << u_d.length() << std::endl;
-            // R.transpose();
-            // u_d = R * u_d;
+            R.transpose();
+            u_d = R * u_d;
             // std::cout << "Reference received transformed back: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
             
             // std::cout << "==============================================================================" << std::endl;
@@ -648,7 +648,6 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     //     q_d = Quaternion(0.9239f, 0.0f, 0.0f, -0.3827f);
     // }
 
-    q_d.q1 = 1.0f; q_d.q2 = 0.0f; q_d.q3 = 0.0f; q_d.q4 = 0.0f;
     q_error = q_d.inverse() * q_body;
     _attitude_ang_error = q_error;
 
@@ -672,15 +671,11 @@ void AC_AttitudeControl_Multi::llc_controller_run()
                 0.0f, 0.2f, 0.0f,
                 0.0f, 0.0f, 0.2f);
 
-
-    k2 = k2*0.0f;
     // Control law for the attitude controller
     Vector3f Tau = -k1 * q_error_v - k2 * omega_error;
 
     // Control action
-    T = mass*g*0.3f;
     float u[4] = {T, Tau[0], Tau[1], Tau[2]};
-    // float u[4] = {T, 0.0f, 0.0f, 0.0f};
 
     // Motor angular velocities computation
     // l -> d: distance from the center of the drone to the propellers
