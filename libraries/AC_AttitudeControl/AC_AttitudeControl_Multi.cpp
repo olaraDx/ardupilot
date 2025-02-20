@@ -649,7 +649,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         Vector3f xe_ddot = x_ddot - x_d_ddot;
         
         // Control law
-        u_d = -kp1 * xe - kd1 * xe_dot - e_z * mass * g + x_d_ddot * mass;
+        u_d = -kp1 * xe - kd1 * xe_dot - e_z * (float)_llc_thr + x_d_ddot * mass;
         u_d_dot = -kp1 * xe_dot - kd1 * xe_ddot + x_d_dddot * mass;
         
         // For tunning ONLY
