@@ -5,7 +5,7 @@
 
 #include "AC_AttitudeControl.h"
 #include <AP_Motors/AP_MotorsMulticopter.h>
-// #include <string>
+#include <string>
 
 // default rate controller PID gains
 #ifndef AC_ATC_MULTI_RATE_RP_P
@@ -98,13 +98,15 @@ protected:
 
     // Provisional variables for data logging
     bool new_file = true;
-    // std::string att_filename = "att_data.txt";
+    std::string att_filename = "att_data.txt";
     // std::string pos_filename = "pos_data.txt";
     Quaternion last_q_body;
     Quaternion last_q_d;
     bool new_flight = true;
     float init_flight_time = 0;
     float last_time = 0;
+    float offset = 0;
+    bool first_time_receiving = true;
     bool ref_received = false;
     Vector3f u_d_received = {0.0f, 0.0f, 0.0f};
     Vector3f u_d_dot_received = {0.0f, 0.0f, 0.0f};

@@ -3,9 +3,9 @@
 #include <AP_Math/AP_Math.h>
 #include <AC_PID/AC_PID.h>
 #include <AP_Scheduler/AP_Scheduler.h>
-// #include <iostream>
-// #include <fstream>
-// #include <ctime>
+#include <iostream>
+#include <fstream>
+#include <ctime>
 
 // table of user settable parameters
 const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
@@ -511,6 +511,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f x_d_dot(x_dot_ref, y_dot_ref, -z_dot_ref);
     Vector3f x_d_ddot(x_ddot_ref, y_ddot_ref, -z_ddot_ref);
     Vector3f x_d_dddot(x_dddot_ref, y_dddot_ref, -z_dddot_ref);
+    // float psi_d = -3.1416f/4.0f;
     float psi_d = 0.0f;
     float psi_d_dot = 0.0f;
 
@@ -519,7 +520,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f omega_d(0.0f, 0.0f, 0.0f);
 
     // Parameters
-    float mass = 0.520;
+    float mass = 0.2722;
     float g = 9.81f;
     float T = mass*g;
     Vector3f e_z(0.0f, 0.0f, 1.0f);
@@ -540,6 +541,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     
     Vector3f u_d(0.0f, 0.0f, 0.0f);
+    Vector3f udx(0.0f, 0.0f, 0.0f);
     Vector3f u_d_dot(0.0f, 0.0f, 0.0f);
     
     // Quaternion q_body, q_d, q_error;
@@ -587,24 +589,32 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
         if(ref_received)
         {
+            if(first_time_receiving)
+            {
+                first_time_receiving = false;
+                offset = AP_HAL::millis() / 1E3;
+            }
             u_d = u_d_received;
+
+            udx = u_d_received;
             // std::cout << "Reference received: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
             u_d_dot = u_d_dot_received;
-            // Quaternion ud_q(0.0f, u_d.x, u_d.y, u_d.z);
-            // Quaternion ud_ned = q_body * ud_q * q_body.inverse() ;
-            // u_d = {ud_ned.q2, ud_ned.q3, ud_ned.q4};
+            q_body.normalize();
+            Quaternion ud_q(0.0, u_d.x, u_d.y, u_d.z);
+            Quaternion ud_ned = q_body * ud_q * q_body.inverse();
+            u_d = {ud_ned.q2, ud_ned.q3, ud_ned.q4};
             // u_d magnitude
             // std::cout << "Reference received magnitude: " << u_d.length() << std::endl;
-            Matrix3f R =  _ahrs.get_rotation_body_to_ned();
-            R.normalize();
+            // Matrix3f R =  _ahrs.get_rotation_body_to_ned();
+            // R.normalize();
             // std::cout << "R = " << R.a.x << " " << R.a.y << " " << R.a.z << std::endl;
             // std::cout << R.b.x << " " << R.b.y << " " << R.b.z << std::endl;
             // std::cout << R.c.x << " " << R.c.y << " " << R.c.z << std::endl;
             // u_d = R * u_d;
             // std::cout << "Reference received transformed: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
             // std::cout << "Reference received transformed magnitude: " << u_d.length() << std::endl;
-            R.transpose();
-            u_d = R * u_d;
+            // R.transpose();
+            // u_d = R * u_d;
             // std::cout << "Reference received transformed back: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
             
             // std::cout << "==============================================================================" << std::endl;
@@ -637,6 +647,8 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         // Thrust
         T = u_d.length();      
     }
+
+    float t = AP_HAL::millis() / 1E3 - offset;
     
     // if(!ref_received)
     // {
@@ -661,15 +673,15 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
 
     // Gain matrix
-    Matrix3f k1(2.0, 0.0f, 0.0f,
-            0.0f, 2.0f, 0.0f,
-            0.0f, 0.0f, 2.0f);
+    Matrix3f k1(3.5, 0.0f, 0.0f,
+            0.0f, 3.5f, 0.0f,
+            0.0f, 0.0f, 4.0f);
 
     // k1 = k1*0.0f;
 
     Matrix3f k2(0.2f, 0.0f, 0.0f,
                 0.0f, 0.2f, 0.0f,
-                0.0f, 0.0f, 0.2f);
+                0.0f, 0.0f, 0.4f);
 
     // Control law for the attitude controller
     Vector3f Tau = -k1 * q_error_v - k2 * omega_error;
@@ -720,39 +732,42 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // std::cout << "u: " << u[0] << " " << u[1] << " " << u[2] << " " << u[3] << std::endl;
     // std::cout << "omega_motors: " << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << std::endl;
     
-    // To create a new file with time stamp
-    // if(this->new_file) {
-    //     // Time stamp
-    //     this->new_file = false;  
-    //     auto td = std::time(nullptr);
-    //     auto tm = *std::localtime(&td);
-    //     char timestamp[20];
-    //     std::strftime(timestamp, sizeof(timestamp), "%m-%d_%H-%M-%S", &tm);
+    if (ref_received)
+    {
+        // To create a new file with time stamp
+        if(this->new_file) {
+            // Time stamp
+            this->new_file = false;  
+            auto td = std::time(nullptr);
+            auto tm = *std::localtime(&td);
+            char timestamp[20];
+            std::strftime(timestamp, sizeof(timestamp), "%m-%d_%H-%M-%S", &tm);
 
-    //     this->att_filename = "/home/olara/Desktop/plots_ap/attitude_data/attitude_data_" + std::string(timestamp) + ".txt";
-    //     this->pos_filename = "/home/olara/Desktop/plots_ap/position_data/position_data_" + std::string(timestamp) + ".txt";
-    // }
+            this->att_filename = "/home/olara/Desktop/plots_ap/attitude_data/attitude_data_" + std::string(timestamp) + ".txt";
+            // this->pos_filename = "/home/olara/Desktop/plots_ap/position_data/position_data_" + std::string(timestamp) + ".txt";
+        }
 
-    // // Open file to save q_d, q_body, q_error along with time
-    // std::ofstream attitude_data(this->att_filename, std::ios_base::app);
+        // Open file to save q_d, q_body, q_error along with time
+        std::ofstream attitude_data(this->att_filename, std::ios_base::app);
 
-    // if (!attitude_data.is_open()) {
-    //     std::cerr << "Error opening file" << std::endl;
-    // } else {
-    //     // Write time, q_d, q_body, q_error to file
-    //     attitude_data << t << " "; // Time in seconds
-    //     attitude_data << q_d.q1 << " " << q_d.q2 << " " << q_d.q3 << " " << q_d.q4 << " "; // q_d quaternion
-    //     attitude_data << q_body.q1 << " " << q_body.q2 << " " << q_body.q3 << " " << q_body.q4 << " "; // q_body quaternion
-    //     attitude_data << q_error.q1 << " " << q_error.q2 << " " << q_error.q3 << " " << q_error.q4 << " "; // q_error quaternion
-    //     attitude_data << omega_d.x << " " << omega_d.y << " " << omega_d.z << " "; // omega_d vector
-    //     attitude_data << omega.x << " " << omega.y << " " << omega.z << " "; // omega vector
-    //     attitude_data << u[0] << " " << u[1] << " " << u[2] << " " << u[3] << " "; // Control action
-    //     attitude_data << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << " "; // Motor angular velocities
-    //     attitude_data << u_d.x << " " << u_d.y << " " << u_d.z << " "; // u_d vector
-    //     attitude_data << u_d_dot.x << " " << u_d_dot.y << " " << u_d_dot.z << std::endl; // u_d_dot vector
-    // }
+        if (!attitude_data.is_open()) {
+            std::cerr << "Error opening file" << std::endl;
+        } else {
+            // Write time, q_d, q_body, q_error to file
+            attitude_data << t << " "; // Time in seconds
+            attitude_data << q_d.q1 << " " << q_d.q2 << " " << q_d.q3 << " " << q_d.q4 << " "; // q_d quaternion
+            attitude_data << q_body.q1 << " " << q_body.q2 << " " << q_body.q3 << " " << q_body.q4 << " "; // q_body quaternion
+            attitude_data << q_error.q1 << " " << q_error.q2 << " " << q_error.q3 << " " << q_error.q4 << " "; // q_error quaternion
+            attitude_data << omega_d.x << " " << omega_d.y << " " << omega_d.z << " "; // omega_d vector
+            attitude_data << omega.x << " " << omega.y << " " << omega.z << " "; // omega vector
+            attitude_data << u[0] << " " << u[1] << " " << u[2] << " " << u[3] << " "; // Control action
+            attitude_data << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << " "; // Motor angular velocities
+            attitude_data << u_d.x << " " << u_d.y << " " << u_d.z << " "; // u_d_received vector
+            attitude_data << udx.x << " " << udx.y << " " << udx.z << std::endl; // u_d_dot vector
+        }
 
-    // attitude_data.close();
+        attitude_data.close();
+    }
 
     // // Open file to save position
     // std::ofstream position_data(this->pos_filename, std::ios_base::app);
