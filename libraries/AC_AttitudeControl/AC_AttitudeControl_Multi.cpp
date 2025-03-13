@@ -501,16 +501,8 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         init_flight_time = AP_HAL::millis() / 1E3;
     
     // float t = AP_HAL::millis() / 1E3 - init_flight_time;
-    float x_ref = 0.0f, y_ref = 0.0f, z_ref = 2.0f;
-    float x_dot_ref = 0.0f, y_dot_ref = 0.0f, z_dot_ref = 0.0f;
-    float x_ddot_ref = 0.0f, y_ddot_ref = 0.0f, z_ddot_ref = 0.0f;
-    float x_dddot_ref = 0.0f, y_dddot_ref = 0.0f, z_dddot_ref = 0.0f;
 
     // Desired path
-    Vector3f x_d(x_ref, y_ref, -z_ref);
-    Vector3f x_d_dot(x_dot_ref, y_dot_ref, -z_dot_ref);
-    Vector3f x_d_ddot(x_ddot_ref, y_ddot_ref, -z_ddot_ref);
-    Vector3f x_d_dddot(x_dddot_ref, y_dddot_ref, -z_dddot_ref);
     // float psi_d = -3.1416f/4.0f;
     float psi_d = 0.0f;
     float psi_d_dot = 0.0f;
@@ -524,21 +516,6 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     float g = 9.81f;
     float T = mass*g;
     Vector3f e_z(0.0f, 0.0f, 1.0f);
-
-    // Drone data initialization
-    Vector3f x(0.0f, 0.0f, 0.0f);
-    Vector3f x_dot(0.0f, 0.0f, 0.0f);
-    Vector3f x_ddot(0.0f, 0.0f, 0.0f);
-
-    // Control gains
-    Matrix3f kp1(-1.0f, 0.0f, 0.0f,
-                 0.0f, -1.0f, 0.0f,
-                 0.0f, 0.0f, -3.0f);
-
-    Matrix3f kd1(-0.5f, 0.0f, 0.0f,
-                0.0f, -0.5, 0.0f,
-                0.0f, 0.0f, -0.5f);
-
     
     Vector3f u_d(0.0f, 0.0f, 0.0f);
     Vector3f udx(0.0f, 0.0f, 0.0f);
@@ -548,10 +525,6 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Quaternion q_body, q_error;
     _ahrs.get_quat_body_to_ned(q_body);
     _rate_gyro = _ahrs.get_gyro_latest();
-
-
-    omega_d = {0.0f, 0.0f, 0.0f};
-
 
     // Normalizing quaternions
     q_d.normalize();
@@ -571,57 +544,40 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     }
     last_q_body = q_body;
 
-    if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) 
+    if(ref_received) 
     {   
-        x_ddot = _ahrs.get_accel_ef(); // Acceleration in NED inertial frame
-        x_ddot = x_ddot + e_z*g;
-
-        // Errors
-        Vector3f xe = x - x_d;
-        Vector3f xe_dot = x_dot - x_d_dot;
-        Vector3f xe_ddot = x_ddot - x_d_ddot;
-
-        // Control law
-        u_d = kp1 * xe + kd1 * xe_dot - e_z * mass * g + x_d_ddot * mass;
-        u_d_dot = kp1 * xe_dot + kd1 * xe_ddot + x_d_dddot * mass;
-
-        // std::cout << "u_d: " << u_d.x << ", " << u_d.y << ", " << u_d.z << std::endl;
-
-        if(ref_received)
+        if(first_time_receiving)
         {
-            if(first_time_receiving)
-            {
-                first_time_receiving = false;
-                offset = AP_HAL::millis() / 1E3;
-            }
-            u_d = u_d_received;
-
-            udx = u_d_received;
-            // std::cout << "Reference received: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
-            u_d_dot = u_d_dot_received;
-            q_body.normalize();
-            Quaternion ud_q(0.0, u_d.x, u_d.y, u_d.z);
-            Quaternion ud_ned = q_body * ud_q * q_body.inverse();
-            u_d = {ud_ned.q2, ud_ned.q3, ud_ned.q4};
-            // u_d magnitude
-            // std::cout << "Reference received magnitude: " << u_d.length() << std::endl;
-            // Matrix3f R =  _ahrs.get_rotation_body_to_ned();
-            // R.normalize();
-            // std::cout << "R = " << R.a.x << " " << R.a.y << " " << R.a.z << std::endl;
-            // std::cout << R.b.x << " " << R.b.y << " " << R.b.z << std::endl;
-            // std::cout << R.c.x << " " << R.c.y << " " << R.c.z << std::endl;
-            // u_d = R * u_d;
-            // std::cout << "Reference received transformed: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
-            // std::cout << "Reference received transformed magnitude: " << u_d.length() << std::endl;
-            // R.transpose();
-            // u_d = R * u_d;
-            // std::cout << "Reference received transformed back: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
-            
-            // std::cout << "==============================================================================" << std::endl;
-            // std::cout << "Reference received: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
-            // std::cout << "Reference received: " << u_d_dot.x << " " << u_d_dot.y << " " << u_d_dot.z << std::endl;
-            // std::cout << "==============================================================================" << std::endl;
+            first_time_receiving = false;
+            offset = AP_HAL::millis() / 1E3;
         }
+        u_d = u_d_received;
+        udx = u_d_received;
+        u_d_dot = u_d_dot_received;
+
+        Quaternion ud_q(0.0f, u_d.x, u_d.y, u_d.z);
+        Quaternion ud_ned = q_body.inverse() * ud_q * q_body;
+        Quaternion ud_ned2 = q_body * ud_q * q_body.inverse();
+        u_d = {ud_ned2.q2, ud_ned2.q3, ud_ned2.q4};
+        udx = {ud_ned.q2, ud_ned.q3, ud_ned.q4};
+        // u_d magnitude
+        // std::cout << "Reference received magnitude: " << u_d.length() << std::endl;
+        // Matrix3f R =  _ahrs.get_rotation_body_to_ned();
+        // R.normalize();
+        // std::cout << "R = " << R.a.x << " " << R.a.y << " " << R.a.z << std::endl;
+        // std::cout << R.b.x << " " << R.b.y << " " << R.b.z << std::endl;
+        // std::cout << R.c.x << " " << R.c.y << " " << R.c.z << std::endl;
+        // u_d = R * u_d;
+        // std::cout << "Reference received transformed: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
+        // std::cout << "Reference received transformed magnitude: " << u_d.length() << std::endl;
+        // R.transpose();
+        // u_d = R * u_d;
+        // std::cout << "Reference received transformed back: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
+        
+        // std::cout << "==============================================================================" << std::endl;
+        // std::cout << "Reference received: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
+        // std::cout << "Reference received: " << u_d_dot.x << " " << u_d_dot.y << " " << u_d_dot.z << std::endl;
+        // std::cout << "==============================================================================" << std::endl;
 
         // Desired attitude
         Vector3f u_d_norm = u_d.normalized();
@@ -649,16 +605,6 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     }
 
     float t = AP_HAL::millis() / 1E3 - offset;
-    
-    // if(!ref_received)
-    // {
-    //     // pi/4 yaw
-    //     // q_d = Quaternion(0.9239f, 0.0f, 0.0f, 0.3827f);
-    //     // -pi/yaw
-    //     // q_d = Quaternion(0.7071f, 0.0f, 0.0f, -0.7071f);
-    //     // -pi/4 yaw
-    //     q_d = Quaternion(0.9239f, 0.0f, 0.0f, -0.3827f);
-    // }
 
     q_error = q_d.inverse() * q_body;
     _attitude_ang_error = q_error;
@@ -673,15 +619,15 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
 
     // Gain matrix
-    Matrix3f k1(3.5, 0.0f, 0.0f,
-            0.0f, 3.5f, 0.0f,
+    Matrix3f k1(3.0f, 0.0f, 0.0f,
+            0.0f, 3.0f, 0.0f,
             0.0f, 0.0f, 4.0f);
 
     // k1 = k1*0.0f;
 
-    Matrix3f k2(0.2f, 0.0f, 0.0f,
-                0.0f, 0.2f, 0.0f,
-                0.0f, 0.0f, 0.4f);
+    Matrix3f k2(0.1f, 0.0f, 0.0f,
+                0.0f, 0.1f, 0.0f,
+                0.0f, 0.0f, 0.1f);
 
     // Control law for the attitude controller
     Vector3f Tau = -k1 * q_error_v - k2 * omega_error;
