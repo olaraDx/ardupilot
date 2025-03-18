@@ -554,14 +554,13 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
 
     // Normalizing quaternions
-    q_d.normalize();
     q_body.normalize();
-
+    
     if(this->new_flight) {
         last_q_body = q_body;
         this->new_flight = false;
     }
-
+    
     // Checking sign changes in quaternions
     if(q_body.q1*last_q_body.q1 + q_body.q2*last_q_body.q2 + q_body.q3*last_q_body.q3 + q_body.q4*last_q_body.q4 < 0.0f) {
         q_body.q1 = -q_body.q1;
@@ -570,21 +569,21 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         q_body.q4 = -q_body.q4;
     }
     last_q_body = q_body;
-
+    
     if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) 
     {   
         x_ddot = _ahrs.get_accel_ef(); // Acceleration in NED inertial frame
         x_ddot = x_ddot + e_z*g;
-
+        
         // Errors
         Vector3f xe = x - x_d;
         Vector3f xe_dot = x_dot - x_d_dot;
         Vector3f xe_ddot = x_ddot - x_d_ddot;
-
+        
         // Control law
         u_d = kp1 * xe + kd1 * xe_dot - e_z * mass * g + x_d_ddot * mass;
         u_d_dot = kp1 * xe_dot + kd1 * xe_ddot + x_d_dddot * mass;
-
+        
         if(ref_received)
         {
             if(first_time_receiving)
@@ -595,50 +594,39 @@ void AC_AttitudeControl_Multi::llc_controller_run()
             u_d = u_d_received;
             udx = u_d_received;
             u_d_dot = u_d_dot_received;
-            q_body.normalize();
             u_d = q_body.inverse() * u_d;
         }
-
+        
         // Desired attitude
         Vector3f u_d_norm = u_d.normalized();
         Vector3f u_d_dot_norm = u_d_dot / u_d.length() - u_d * (u_d * u_d_dot) / powf(u_d.length(), 3.0f);
-
+        
         Quaternion q_dxy(1.0f/2.0f * sqrtf(-2*u_d_norm.z + 2),
-                         u_d_norm.y / sqrtf(-2*u_d_norm.z + 2),
-                         -u_d_norm.x / sqrtf(-2*u_d_norm.z + 2),
-
-                         0.0f);
-
+        u_d_norm.y / sqrtf(-2*u_d_norm.z + 2),
+        -u_d_norm.x / sqrtf(-2*u_d_norm.z + 2),
+        0.0f);
+        
         Quaternion q_dz(cosf(psi_d/2.0f), 
-                             0.0f, 
-                             0.0f, 
-                             sinf(psi_d/2.0f));
-
+        0.0f, 
+        0.0f, 
+        sinf(psi_d/2.0f));
+        
         q_d = q_dxy * q_dz;
         
         omega_d = {-sinf(psi_d)*u_d_dot_norm.x + cosf(psi_d)*u_d_dot_norm.y + u_d_dot_norm.z*(sinf(psi_d)*u_d_norm.x - cosf(psi_d)*u_d_norm.y)/(u_d_norm.z - 1.0f),
-                             -cosf(psi_d)*u_d_dot_norm.x - sinf(psi_d)*u_d_dot_norm.y + u_d_dot_norm.z*(cosf(psi_d)*u_d_norm.x + sinf(psi_d)*u_d_norm.y)/(u_d_norm.z - 1.0f),
-                             psi_d_dot + (u_d_norm.x*u_d_dot_norm.y - u_d_norm.y*u_d_dot_norm.x)/(u_d_norm.z - 1.0f)};
-
-        // Thrust
-        T = u_d.length();      
+            -cosf(psi_d)*u_d_dot_norm.x - sinf(psi_d)*u_d_dot_norm.y + u_d_dot_norm.z*(cosf(psi_d)*u_d_norm.x + sinf(psi_d)*u_d_norm.y)/(u_d_norm.z - 1.0f),
+            psi_d_dot + (u_d_norm.x*u_d_dot_norm.y - u_d_norm.y*u_d_dot_norm.x)/(u_d_norm.z - 1.0f)};
+            
+            // Thrust
+            T = u_d.length();      
     }
-
+        
     float t = AP_HAL::millis() / 1E3 - offset;
-    
-    // if(!ref_received)
-    // {
-    //     // pi/4 yaw
-    //     // q_d = Quaternion(0.9239f, 0.0f, 0.0f, 0.3827f);
-    //     // -pi/yaw
-    //     // q_d = Quaternion(0.7071f, 0.0f, 0.0f, -0.7071f);
-    //     // -pi/4 yaw
-    //     q_d = Quaternion(0.9239f, 0.0f, 0.0f, -0.3827f);
-    // }
 
+    q_d.normalize();
     q_error = q_d.inverse() * q_body;
     _attitude_ang_error = q_error;
-
+            
     // Rates
     Vector3f omega(_rate_gyro.x, _rate_gyro.y, _rate_gyro.z);
 
