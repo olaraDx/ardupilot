@@ -585,8 +585,6 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         u_d = kp1 * xe + kd1 * xe_dot - e_z * mass * g + x_d_ddot * mass;
         u_d_dot = kp1 * xe_dot + kd1 * xe_ddot + x_d_dddot * mass;
 
-        // std::cout << "u_d: " << u_d.x << ", " << u_d.y << ", " << u_d.z << std::endl;
-
         if(ref_received)
         {
             if(first_time_receiving)
@@ -595,32 +593,10 @@ void AC_AttitudeControl_Multi::llc_controller_run()
                 offset = AP_HAL::millis() / 1E3;
             }
             u_d = u_d_received;
-
             udx = u_d_received;
-            // std::cout << "Reference received: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
             u_d_dot = u_d_dot_received;
             q_body.normalize();
-            Quaternion ud_q(0.0, u_d.x, u_d.y, u_d.z);
-            Quaternion ud_ned = q_body * ud_q * q_body.inverse();
-            u_d = {ud_ned.q2, ud_ned.q3, ud_ned.q4};
-            // u_d magnitude
-            // std::cout << "Reference received magnitude: " << u_d.length() << std::endl;
-            // Matrix3f R =  _ahrs.get_rotation_body_to_ned();
-            // R.normalize();
-            // std::cout << "R = " << R.a.x << " " << R.a.y << " " << R.a.z << std::endl;
-            // std::cout << R.b.x << " " << R.b.y << " " << R.b.z << std::endl;
-            // std::cout << R.c.x << " " << R.c.y << " " << R.c.z << std::endl;
-            // u_d = R * u_d;
-            // std::cout << "Reference received transformed: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
-            // std::cout << "Reference received transformed magnitude: " << u_d.length() << std::endl;
-            // R.transpose();
-            // u_d = R * u_d;
-            // std::cout << "Reference received transformed back: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
-            
-            // std::cout << "==============================================================================" << std::endl;
-            // std::cout << "Reference received: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
-            // std::cout << "Reference received: " << u_d_dot.x << " " << u_d_dot.y << " " << u_d_dot.z << std::endl;
-            // std::cout << "==============================================================================" << std::endl;
+            u_d = q_body.inverse() * u_d;
         }
 
         // Desired attitude
