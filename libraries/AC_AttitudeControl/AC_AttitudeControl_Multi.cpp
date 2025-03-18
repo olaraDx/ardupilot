@@ -527,7 +527,6 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     _rate_gyro = _ahrs.get_gyro_latest();
 
     // Normalizing quaternions
-    q_d.normalize();
     q_body.normalize();
 
     if(this->new_flight) {
@@ -555,11 +554,14 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         udx = u_d_received;
         u_d_dot = u_d_dot_received;
 
-        Quaternion ud_q(0.0f, u_d.x, u_d.y, u_d.z);
-        Quaternion ud_ned = q_body.inverse() * ud_q * q_body;
-        Quaternion ud_ned2 = q_body * ud_q * q_body.inverse();
-        u_d = {ud_ned2.q2, ud_ned2.q3, ud_ned2.q4};
-        udx = {ud_ned.q2, ud_ned.q3, ud_ned.q4};
+        // Quaternion ud_q(0.0f, u_d.x, u_d.y, u_d.z);
+        // Quaternion ud_ned = q_body.inverse() * ud_q * q_body;
+        // Quaternion ud_ned2 = q_body * ud_q * q_body.inverse();
+        // u_d = {ud_ned2.q2, ud_ned2.q3, ud_ned2.q4};
+        // udx = {ud_ned.q2, ud_ned.q3, ud_ned.q4};
+        u_d = q_body.inverse() * u_d;
+        // u_d = q_body * u_d;
+        // udx = q_body * udx;
         // u_d magnitude
         // std::cout << "Reference received magnitude: " << u_d.length() << std::endl;
         // Matrix3f R =  _ahrs.get_rotation_body_to_ned();
@@ -605,7 +607,8 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     }
 
     float t = AP_HAL::millis() / 1E3 - offset;
-
+    q_body.normalize();
+    q_d.normalize();
     q_error = q_d.inverse() * q_body;
     _attitude_ang_error = q_error;
 
@@ -619,8 +622,8 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
 
     // Gain matrix
-    Matrix3f k1(3.0f, 0.0f, 0.0f,
-            0.0f, 3.0f, 0.0f,
+    Matrix3f k1(2.0f, 0.0f, 0.0f,
+            0.0f, 2.0f, 0.0f,
             0.0f, 0.0f, 4.0f);
 
     // k1 = k1*0.0f;
