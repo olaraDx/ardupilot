@@ -554,32 +554,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         udx = u_d_received;
         u_d_dot = u_d_dot_received;
 
-        // Quaternion ud_q(0.0f, u_d.x, u_d.y, u_d.z);
-        // Quaternion ud_ned = q_body.inverse() * ud_q * q_body;
-        // Quaternion ud_ned2 = q_body * ud_q * q_body.inverse();
-        // u_d = {ud_ned2.q2, ud_ned2.q3, ud_ned2.q4};
-        // udx = {ud_ned.q2, ud_ned.q3, ud_ned.q4};
         u_d = q_body.inverse() * u_d;
-        // u_d = q_body * u_d;
-        // udx = q_body * udx;
-        // u_d magnitude
-        // std::cout << "Reference received magnitude: " << u_d.length() << std::endl;
-        // Matrix3f R =  _ahrs.get_rotation_body_to_ned();
-        // R.normalize();
-        // std::cout << "R = " << R.a.x << " " << R.a.y << " " << R.a.z << std::endl;
-        // std::cout << R.b.x << " " << R.b.y << " " << R.b.z << std::endl;
-        // std::cout << R.c.x << " " << R.c.y << " " << R.c.z << std::endl;
-        // u_d = R * u_d;
-        // std::cout << "Reference received transformed: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
-        // std::cout << "Reference received transformed magnitude: " << u_d.length() << std::endl;
-        // R.transpose();
-        // u_d = R * u_d;
-        // std::cout << "Reference received transformed back: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
-        
-        // std::cout << "==============================================================================" << std::endl;
-        // std::cout << "Reference received: " << u_d.x << " " << u_d.y << " " << u_d.z << std::endl;
-        // std::cout << "Reference received: " << u_d_dot.x << " " << u_d_dot.y << " " << u_d_dot.z << std::endl;
-        // std::cout << "==============================================================================" << std::endl;
 
         // Desired attitude
         Vector3f u_d_norm = u_d.normalized();
@@ -622,9 +597,9 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
 
     // Gain matrix
-    Matrix3f k1(2.0f, 0.0f, 0.0f,
-            0.0f, 2.0f, 0.0f,
-            0.0f, 0.0f, 4.0f);
+    Matrix3f k1(1.8f, 0.0f, 0.0f,
+            0.0f, 1.8f, 0.0f,
+            0.0f, 0.0f, 1.3f);
 
     // k1 = k1*0.0f;
 
