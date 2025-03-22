@@ -486,6 +486,9 @@ void AC_AttitudeControl_Multi::rate_controller_run()
     // Set motors to use rate controller
     this->_motors.set_use_LLC(false);
     this->new_file = true;
+    // Solve the problem with commands transition
+    this->ref_received = false;
+    this->first_time_receiving = true;
 
     Vector3f gyro_latest = _ahrs.get_gyro_latest();
     rate_controller_run_dt(gyro_latest, _dt);
@@ -498,7 +501,9 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     this->_motors.set_use_LLC(true);
 
     if(this->new_flight)
+    {       
         init_flight_time = AP_HAL::millis() / 1E3;
+    }
     
     // float t = AP_HAL::millis() / 1E3 - init_flight_time;
     float x_ref = 0.0f, y_ref = 0.0f, z_ref = 2.0f;
@@ -558,6 +563,12 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     
     if(this->new_flight) {
         last_q_body = q_body;
+        this->ref_received = false;
+        this->first_time_receiving = true;
+        u_d = {0.0f, 0.0f, 0.0f};
+        u_d_dot = {0.0f, 0.0f, 0.0f};
+        u_d_received = {0.0f, 0.0f, 0.0f};
+        u_d_dot_received = {0.0f, 0.0f, 0.0f};
         this->new_flight = false;
     }
     
@@ -624,6 +635,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     float t = AP_HAL::millis() / 1E3 - offset;
 
     q_d.normalize();
+    q_body.normalize();
     q_error = q_d.inverse() * q_body;
     _attitude_ang_error = q_error;
             
@@ -637,15 +649,13 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
 
     // Gain matrix
-    Matrix3f k1(3.5, 0.0f, 0.0f,
-            0.0f, 3.5f, 0.0f,
-            0.0f, 0.0f, 4.0f);
+    Matrix3f k1(1.8, 0.0f, 0.0f,
+            0.0f, 1.8f, 0.0f,
+            0.0f, 0.0f, 1.3f);
 
-    // k1 = k1*0.0f;
-
-    Matrix3f k2(0.2f, 0.0f, 0.0f,
-                0.0f, 0.2f, 0.0f,
-                0.0f, 0.0f, 0.4f);
+    Matrix3f k2(0.1f, 0.0f, 0.0f,
+                0.0f, 0.1f, 0.0f,
+                0.0f, 0.0f, 0.1f);
 
     // Control law for the attitude controller
     Vector3f Tau = -k1 * q_error_v - k2 * omega_error;
@@ -672,30 +682,13 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         omega_motors[i] = omega_motors[i] > 1.0f ? 1.0f : omega_motors[i];
     }
 
-    // for(int i = 0; i < 4; i++){
-    //     // Limit omega_motors
-    //     omega_motors[i] = omega_motors[i] < 0.0f ? 0.0f : sqrtf(omega_motors[i])/3220.0f;
-    //     omega_motors[i] = omega_motors[i] > 1.0f ? 1.0f : omega_motors[i];
-    // }
-    
-
     // Send motor angular velocities to the motors
     this->_motors.set_omega1(omega_motors[0]);
     this->_motors.set_omega2(omega_motors[1]);
     this->_motors.set_omega3(omega_motors[2]);
     this->_motors.set_omega4(omega_motors[3]);
 
-    // this->_motors.set_omega1(0.0f);
-    // this->_motors.set_omega2(0.0f);
-    // this->_motors.set_omega3(0.5f);
-    // this->_motors.set_omega4(0.0f);
 
-    // Print info
-    // std::cout << "T: " << T << std::endl;
-    // std::cout << "Tau: " << Tau[0] << " " << Tau[1] << " " << Tau[2] << std::endl;
-    // std::cout << "u: " << u[0] << " " << u[1] << " " << u[2] << " " << u[3] << std::endl;
-    // std::cout << "omega_motors: " << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << std::endl;
-    
     if (ref_received)
     {
         // To create a new file with time stamp
@@ -762,11 +755,7 @@ void AC_AttitudeControl_Multi::llc_set_virtual_ctrl(const Vector3f& u_d, const V
     this->u_d_dot_received = u_d_dot;
     this->ref_received = true;
     // float delta_t = AP_HAL::millis() / 1E3 - last_time;
-    last_time = AP_HAL::millis() / 1E3;
-//     std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-//     std::cout << "Reference received" << std::endl;
-//     std::cout << "Time: " << delta_t << std::endl;
-//     std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
+    // last_time = AP_HAL::millis() / 1E3;
 }
 
 // sanity check parameters.  should be called once before takeoff
