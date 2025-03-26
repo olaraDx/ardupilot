@@ -516,7 +516,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f x_d_dot(x_dot_ref, y_dot_ref, -z_dot_ref);
     Vector3f x_d_ddot(x_ddot_ref, y_ddot_ref, -z_ddot_ref);
     Vector3f x_d_dddot(x_dddot_ref, y_dddot_ref, -z_dddot_ref);
-    // float psi_d = -3.1416f/4.0f;
+    // float psi_d = 3.1416f/4.0f;
     float psi_d = 0.0f;
     float psi_d_dot = 0.0f;
 
@@ -525,7 +525,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f omega_d(0.0f, 0.0f, 0.0f);
 
     // Parameters
-    float mass = 0.2722;
+    float mass = 0.2722f;
     float g = 9.81f;
     float T = mass*g;
     Vector3f e_z(0.0f, 0.0f, 1.0f);
@@ -597,6 +597,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         
         if(ref_received)
         {
+            // For time offset (plots)
             if(first_time_receiving)
             {
                 first_time_receiving = false;
@@ -605,9 +606,12 @@ void AC_AttitudeControl_Multi::llc_controller_run()
             u_d = u_d_received;
             udx = u_d_received;
             u_d_dot = u_d_dot_received;
-            u_d = q_body.inverse() * u_d;
+            // Fist transform u_d to body frame
+            u_d = q_body * u_d;
+            // And then add gravity compensation
+            u_d.z = - mass * g;
         }
-        
+
         // Desired attitude
         Vector3f u_d_norm = u_d.normalized();
         Vector3f u_d_dot_norm = u_d_dot / u_d.length() - u_d * (u_d * u_d_dot) / powf(u_d.length(), 3.0f);
@@ -631,8 +635,12 @@ void AC_AttitudeControl_Multi::llc_controller_run()
             // Thrust
             T = u_d.length();      
     }
+    
         
     float t = AP_HAL::millis() / 1E3 - offset;
+
+    // q_d = Quaternion(0.7934f, 0.0f, 0.0f, 0.6088f);
+    // T = (mass * g);
 
     q_d.normalize();
     q_body.normalize();
@@ -651,22 +659,24 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // Gain matrix
     Matrix3f k1(1.8, 0.0f, 0.0f,
             0.0f, 1.8f, 0.0f,
-            0.0f, 0.0f, 1.3f);
+            0.0f, 0.0f, 1.5f);
 
     Matrix3f k2(0.1f, 0.0f, 0.0f,
                 0.0f, 0.1f, 0.0f,
-                0.0f, 0.0f, 0.1f);
+                0.0f, 0.0f, 0.2f);
 
     // Control law for the attitude controller
     Vector3f Tau = -k1 * q_error_v - k2 * omega_error;
 
     // Control action
     float u[4] = {T, Tau[0], Tau[1], Tau[2]};
+    // float u[4] = {T, 0.0f, 0.0f, 0.05f};
 
     // Motor angular velocities computation
     // l -> d: distance from the center of the drone to the propellers
     // k -> b: thrust coefficient
     // b -> k: drag coefficient
+    // float b = 2.980E-6, d = 0.237f, k = 1.140E-5*10.0f;
     float b = 2.980E-6, d = 0.3181f, k = 1.140E-7*10.0f;
     float omega_motors[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     float c1 = 1/(4.0f*b), c2 = sqrtf(2.0f)/(4.0f*b*d), c3 = 1/(4.0f*k);

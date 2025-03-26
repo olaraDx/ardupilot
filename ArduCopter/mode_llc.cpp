@@ -25,7 +25,6 @@ void ModeLLC::run()
 
 bool ModeLLC::handle_message(const mavlink_message_t &msg)
 {
-    std::cout << "Handling custom message" << std::endl;
     switch (msg.msgid) {
         case MAVLINK_MSG_ID_FORCE_VECTOR_TARGET: {
             // Verificar que el mensaje es para este sistema
@@ -45,8 +44,6 @@ bool ModeLLC::handle_message(const mavlink_message_t &msg)
             _force_target_derivative.z = packet.force_derivative_z;
 
             attitude_control->llc_set_virtual_ctrl(_force_target, _force_target_derivative);
-            std::cout << "Force vector target: " << _force_target.x << ", " << _force_target.y << ", " << _force_target.z << std::endl; 
-            std::cout << "Force vector target derivative: " << _force_target_derivative.x << ", " << _force_target_derivative.y << ", " << _force_target_derivative.z << std::endl;
 
             _have_new_force_target = true;
             _last_force_target_ms = AP_HAL::millis();
