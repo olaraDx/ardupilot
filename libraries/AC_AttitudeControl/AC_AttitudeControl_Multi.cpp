@@ -506,7 +506,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     }
     
     // float t = AP_HAL::millis() / 1E3 - init_flight_time;
-    float x_ref = 0.0f, y_ref = 0.0f, z_ref = 2.0f;
+    float x_ref = 0.0f, y_ref = 0.0f, z_ref = 3.0f;
     float x_dot_ref = 0.0f, y_dot_ref = 0.0f, z_dot_ref = 0.0f;
     float x_ddot_ref = 0.0f, y_ddot_ref = 0.0f, z_ddot_ref = 0.0f;
     float x_dddot_ref = 0.0f, y_dddot_ref = 0.0f, z_dddot_ref = 0.0f;
@@ -609,7 +609,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
             // Fist transform u_d to body frame
             u_d = q_body * u_d;
             // And then add gravity compensation
-            u_d.z = - mass * g;
+            u_d.z += - mass * g;
         }
 
         // Desired attitude
@@ -710,7 +710,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
             char timestamp[20];
             std::strftime(timestamp, sizeof(timestamp), "%m-%d_%H-%M-%S", &tm);
 
-            this->att_filename = "/home/olara/Desktop/plots_ap/attitude_data/attitude_data_" + std::string(timestamp) + ".txt";
+            this->att_filename = "/home/olara/ap_drone_ws/src/target_tracking/plots/attitude/data/attitude_data_" + std::string(timestamp) + ".txt";
             // this->pos_filename = "/home/olara/Desktop/plots_ap/position_data/position_data_" + std::string(timestamp) + ".txt";
         }
 
