@@ -1248,8 +1248,8 @@ protected:
     const char *name4() const override { return "LLC"; }
 
 private:
-    Vector3f _force_target;
-    Vector3f _force_target_derivative;
+    Vector3f _force_target = {0.0f, 0.0f, 0.0f};
+    Vector3f _force_target_derivative = {0.0f, 0.0f, 0.0f};
     bool _have_new_force_target;
     uint32_t _last_force_target_ms;
     bool handle_message(const mavlink_message_t &msg) override;
