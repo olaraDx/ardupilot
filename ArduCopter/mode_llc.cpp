@@ -12,7 +12,7 @@ bool ModeLLC::init(bool ignore_checks)
 {
     // start in angle control mode
     gcs().send_text(MAV_SEVERITY_INFO, "Init");
-    AP::logger().Write("PITO", "TimeUS,fx,fy,fz,fxd,fyd,fzd", "Qffffff", 
+    AP::logger().Write("ZYXW", "TimeUS,fx,fy,fz,fxd,fyd,fzd", "Qffffff", 
         AP_HAL::micros64(), 
         (float)_force_target.x, 
         (float)_force_target.y, 
@@ -70,7 +70,7 @@ bool ModeLLC::handle_message(const mavlink_message_t &msg)
             _force_target_derivative.y = packet.force_derivative_y;
             _force_target_derivative.z = packet.force_derivative_z;
 
-            AP::logger().Write("PITO", "TimeUS,fx,fy,fz,fxd,fyd,fzd", "Qffffff", 
+            AP::logger().Write("ZYXW", "TimeUS,fx,fy,fz,fxd,fyd,fzd", "Qffffff", 
                 AP_HAL::micros64(), 
                 (float)_force_target.x, 
                 (float)_force_target.y, 
