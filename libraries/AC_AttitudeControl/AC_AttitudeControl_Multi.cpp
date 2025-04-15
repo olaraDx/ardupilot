@@ -320,6 +320,69 @@ const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("THR_G_BOOST", 7, AC_AttitudeControl_Multi, _throttle_gain_boost, 0.0f),
 
+        // @Param: LLC_THR
+    // @DisplayName: Low Level Control Throttle
+    // @Description: Low Level Control Throttle
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_THR", 8, AC_AttitudeControl_Multi, _llc_thr, 0.0f),
+
+    // @Param: LLC_RPP_GAIN
+    // @DisplayName: Low Level Control Roll/Pitch Position Gain
+    // @Description: Low Level Control Roll/Pitch Position Gain
+    // @Range: 0.0 15.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_RPP_GAIN", 9, AC_AttitudeControl_Multi, _llc_rpp_gain, 1.8f),
+
+    // @Param: LLC_RPD_GAIN
+    // @DisplayName: Low Level Control Roll/Pitch Derivative Gain
+    // @Description: Low Level Control Roll/Pitch Derivative Gain
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_RPD_GAIN", 10, AC_AttitudeControl_Multi, _llc_rpd_gain, 0.2f),
+
+    // @Param: LLC_YP_GAIN
+    // @DisplayName: Low Level Control Yaw Position Gain
+    // @Description: Low Level Control Yaw Position Gain
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_YP_GAIN", 11, AC_AttitudeControl_Multi, _llc_yp_gain, 1.3f),
+
+    // @Param: LLC_YD_GAIN
+    // @DisplayName: Low Level Control Yaw Derivative Gain
+    // @Description: Low Level Control Yaw Derivative Gain
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_YD_GAIN", 12, AC_AttitudeControl_Multi, _llc_yd_gain, 0.2f),
+
+    // @Param: LLC_ZPOS
+    // @DisplayName: Low Level Control Z Position
+    // @Description: Low Level Control Z Position
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_ZPOS", 13, AC_AttitudeControl_Multi, _llc_zpos, 0.2f),
+
+    // @Param: LLC_USE_FTHR
+    // @DisplayName: Flag to use fixed throttle
+    // @Description: Flag to use fixed throttle
+    // @Values: 0:Disabled,1:Enabled
+    // @User: Advanced
+    AP_GROUPINFO("LLC_USE_FTHR", 14, AC_AttitudeControl_Multi, _llc_use_fthr, 0),
+
+    // @Param: LLC_ZP_GAIN
+    // @DisplayName: Low Level Control Z Position Gain
+    // @Description: Low Level Control Z Position Gain
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_ZP_GAIN", 15, AC_AttitudeControl_Multi, _llc_zp_gain, 1.0f),
+
+    // @Param: LLC_ZD_GAIN
+    // @DisplayName: Low Level Control Z Derivative Gain
+    // @Description: Low Level Control Z Derivative Gain
+    // @Range: 0.0 5.0
+    // @User: Advanced
+    AP_GROUPINFO("LLC_ZD_GAIN", 16, AC_AttitudeControl_Multi, _llc_zd_gain, 0.5f),
+
     AP_GROUPEND
 };
 
