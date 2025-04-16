@@ -3,9 +3,9 @@
 #include <AP_Math/AP_Math.h>
 #include <AC_PID/AC_PID.h>
 #include <AP_Scheduler/AP_Scheduler.h>
-#include <iostream>
-#include <fstream>
-#include <ctime>
+// #include <iostream>
+// #include <fstream>
+// #include <ctime>
 
 // table of user settable parameters
 const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
@@ -339,14 +339,14 @@ const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
     // @Description: Low Level Control Roll/Pitch Derivative Gain
     // @Range: 0.0 5.0
     // @User: Advanced
-    AP_GROUPINFO("LLC_RPD_GAIN", 10, AC_AttitudeControl_Multi, _llc_rpd_gain, 0.2f),
+    AP_GROUPINFO("LLC_RPD_GAIN", 10, AC_AttitudeControl_Multi, _llc_rpd_gain, 0.1f),
 
     // @Param: LLC_YP_GAIN
     // @DisplayName: Low Level Control Yaw Position Gain
     // @Description: Low Level Control Yaw Position Gain
     // @Range: 0.0 5.0
     // @User: Advanced
-    AP_GROUPINFO("LLC_YP_GAIN", 11, AC_AttitudeControl_Multi, _llc_yp_gain, 1.3f),
+    AP_GROUPINFO("LLC_YP_GAIN", 11, AC_AttitudeControl_Multi, _llc_yp_gain, 1.5f),
 
     // @Param: LLC_YD_GAIN
     // @DisplayName: Low Level Control Yaw Derivative Gain
@@ -360,7 +360,7 @@ const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
     // @Description: Low Level Control Z Position
     // @Range: 0.0 5.0
     // @User: Advanced
-    AP_GROUPINFO("LLC_ZPOS", 13, AC_AttitudeControl_Multi, _llc_zpos, 0.2f),
+    AP_GROUPINFO("LLC_ZPOS", 13, AC_AttitudeControl_Multi, _llc_zpos, 1.0f),
 
     // @Param: LLC_USE_FTHR
     // @DisplayName: Flag to use fixed throttle
@@ -374,7 +374,7 @@ const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
     // @Description: Low Level Control Z Position Gain
     // @Range: 0.0 5.0
     // @User: Advanced
-    AP_GROUPINFO("LLC_ZP_GAIN", 15, AC_AttitudeControl_Multi, _llc_zp_gain, 1.0f),
+    AP_GROUPINFO("LLC_ZP_GAIN", 15, AC_AttitudeControl_Multi, _llc_zp_gain, 3.0f),
 
     // @Param: LLC_ZD_GAIN
     // @DisplayName: Low Level Control Z Derivative Gain
@@ -569,7 +569,7 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     }
     
     // float t = AP_HAL::millis() / 1E3 - init_flight_time;
-    float x_ref = 0.0f, y_ref = 0.0f, z_ref = 3.0f;
+    float x_ref = 0.0f, y_ref = 0.0f, z_ref = (float)_llc_zpos;
     float x_dot_ref = 0.0f, y_dot_ref = 0.0f, z_dot_ref = 0.0f;
     float x_ddot_ref = 0.0f, y_ddot_ref = 0.0f, z_ddot_ref = 0.0f;
     float x_dddot_ref = 0.0f, y_dddot_ref = 0.0f, z_dddot_ref = 0.0f;
@@ -599,13 +599,13 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Vector3f x_ddot(0.0f, 0.0f, 0.0f);
 
     // Control gains
-    Matrix3f kp1(-1.0f, 0.0f, 0.0f,
-                 0.0f, -1.0f, 0.0f,
-                 0.0f, 0.0f, -3.0f);
+    Matrix3f kp1((float)1.0, 0.0f, 0.0f,
+                 0.0f, (float)1.0f, 0.0f,
+                 0.0f, 0.0f, (float)_llc_zp_gain);
 
-    Matrix3f kd1(-0.5f, 0.0f, 0.0f,
-                0.0f, -0.5, 0.0f,
-                0.0f, 0.0f, -0.5f);
+    Matrix3f kd1((float)0.5f, 0.0f, 0.0f,
+                0.0f, (float)0.5, 0.0f,
+                0.0f, 0.0f, (float)_llc_zd_gain);
 
     
     Vector3f u_d(0.0f, 0.0f, 0.0f);
@@ -655,8 +655,8 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         Vector3f xe_ddot = x_ddot - x_d_ddot;
         
         // Control law
-        u_d = kp1 * xe + kd1 * xe_dot - e_z * mass * g + x_d_ddot * mass;
-        u_d_dot = kp1 * xe_dot + kd1 * xe_ddot + x_d_dddot * mass;
+        u_d = - kp1 * xe - kd1 * xe_dot - e_z * mass * g + x_d_ddot * mass;
+        u_d_dot = - kp1 * xe_dot - kd1 * xe_ddot + x_d_dddot * mass;
         
         if(ref_received)
         {
@@ -700,10 +700,12 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     }
     
         
-    float t = AP_HAL::millis() / 1E3 - offset;
+    // float t = AP_HAL::millis() / 1E3 - offset;
 
     // q_d = Quaternion(0.7934f, 0.0f, 0.0f, 0.6088f);
     // T = (mass * g);
+
+    q_d = Quaternion(1.0, 0.0f, 0.0f, 0.0f);
 
     q_d.normalize();
     q_body.normalize();
@@ -720,16 +722,21 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
 
     // Gain matrix
-    Matrix3f k1(1.8, 0.0f, 0.0f,
-            0.0f, 1.8f, 0.0f,
-            0.0f, 0.0f, 1.5f);
+    Matrix3f k1((float)_llc_rpp_gain, 0.0f, 0.0f,
+        0.0f, (float)_llc_rpp_gain, 0.0f,
+        0.0f, 0.0f, (float)_llc_yp_gain);
 
-    Matrix3f k2(0.1f, 0.0f, 0.0f,
-                0.0f, 0.1f, 0.0f,
-                0.0f, 0.0f, 0.2f);
+    Matrix3f k2((float)_llc_rpd_gain, 0.0f, 0.0f,
+                0.0f, (float)_llc_rpd_gain, 0.0f,
+                0.0f, 0.0f, (float)_llc_yd_gain);
 
     // Control law for the attitude controller
-    Vector3f Tau = -k1 * q_error_v - k2 * omega_error;
+    Vector3f Tau = - k1 * q_error_v - k2 * omega_error;
+
+    if(_llc_use_fthr)
+    {
+        T = (float)_llc_thr;
+    }
 
     // Control action
     float u[4] = {T, Tau[0], Tau[1], Tau[2]};
@@ -762,42 +769,42 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     this->_motors.set_omega4(omega_motors[3]);
 
 
-    if (ref_received)
-    {
-        // To create a new file with time stamp
-        if(this->new_file) {
-            // Time stamp
-            this->new_file = false;  
-            auto td = std::time(nullptr);
-            auto tm = *std::localtime(&td);
-            char timestamp[20];
-            std::strftime(timestamp, sizeof(timestamp), "%m-%d_%H-%M-%S", &tm);
+    // if (ref_received)
+    // {
+    //     // To create a new file with time stamp
+    //     if(this->new_file) {
+    //         // Time stamp
+    //         this->new_file = false;  
+    //         auto td = std::time(nullptr);
+    //         auto tm = *std::localtime(&td);
+    //         char timestamp[20];
+    //         std::strftime(timestamp, sizeof(timestamp), "%m-%d_%H-%M-%S", &tm);
 
-            this->att_filename = "/home/olara/ap_drone_ws/src/target_tracking/plots/attitude/data/attitude_data_" + std::string(timestamp) + ".txt";
-            // this->pos_filename = "/home/olara/Desktop/plots_ap/position_data/position_data_" + std::string(timestamp) + ".txt";
-        }
+    //         this->att_filename = "/home/olara/ap_drone_ws/src/target_tracking/plots/attitude/data/attitude_data_" + std::string(timestamp) + ".txt";
+    //         // this->pos_filename = "/home/olara/Desktop/plots_ap/position_data/position_data_" + std::string(timestamp) + ".txt";
+    //     }
 
-        // Open file to save q_d, q_body, q_error along with time
-        std::ofstream attitude_data(this->att_filename, std::ios_base::app);
+    //     // Open file to save q_d, q_body, q_error along with time
+    //     std::ofstream attitude_data(this->att_filename, std::ios_base::app);
 
-        if (!attitude_data.is_open()) {
-            std::cerr << "Error opening file" << std::endl;
-        } else {
-            // Write time, q_d, q_body, q_error to file
-            attitude_data << t << " "; // Time in seconds
-            attitude_data << q_d.q1 << " " << q_d.q2 << " " << q_d.q3 << " " << q_d.q4 << " "; // q_d quaternion
-            attitude_data << q_body.q1 << " " << q_body.q2 << " " << q_body.q3 << " " << q_body.q4 << " "; // q_body quaternion
-            attitude_data << q_error.q1 << " " << q_error.q2 << " " << q_error.q3 << " " << q_error.q4 << " "; // q_error quaternion
-            attitude_data << omega_d.x << " " << omega_d.y << " " << omega_d.z << " "; // omega_d vector
-            attitude_data << omega.x << " " << omega.y << " " << omega.z << " "; // omega vector
-            attitude_data << u[0] << " " << u[1] << " " << u[2] << " " << u[3] << " "; // Control action
-            attitude_data << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << " "; // Motor angular velocities
-            attitude_data << u_d.x << " " << u_d.y << " " << u_d.z << " "; // u_d_received vector
-            attitude_data << udx.x << " " << udx.y << " " << udx.z << std::endl; // u_d_dot vector
-        }
+    //     if (!attitude_data.is_open()) {
+    //         std::cerr << "Error opening file" << std::endl;
+    //     } else {
+    //         // Write time, q_d, q_body, q_error to file
+    //         attitude_data << t << " "; // Time in seconds
+    //         attitude_data << q_d.q1 << " " << q_d.q2 << " " << q_d.q3 << " " << q_d.q4 << " "; // q_d quaternion
+    //         attitude_data << q_body.q1 << " " << q_body.q2 << " " << q_body.q3 << " " << q_body.q4 << " "; // q_body quaternion
+    //         attitude_data << q_error.q1 << " " << q_error.q2 << " " << q_error.q3 << " " << q_error.q4 << " "; // q_error quaternion
+    //         attitude_data << omega_d.x << " " << omega_d.y << " " << omega_d.z << " "; // omega_d vector
+    //         attitude_data << omega.x << " " << omega.y << " " << omega.z << " "; // omega vector
+    //         attitude_data << u[0] << " " << u[1] << " " << u[2] << " " << u[3] << " "; // Control action
+    //         attitude_data << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << " "; // Motor angular velocities
+    //         attitude_data << u_d.x << " " << u_d.y << " " << u_d.z << " "; // u_d_received vector
+    //         attitude_data << udx.x << " " << udx.y << " " << udx.z << std::endl; // u_d_dot vector
+    //     }
 
-        attitude_data.close();
-    }
+    //     attitude_data.close();
+    // }
 
     // // Open file to save position
     // std::ofstream position_data(this->pos_filename, std::ios_base::app);

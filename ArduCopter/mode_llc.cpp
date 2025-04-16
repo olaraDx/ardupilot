@@ -1,5 +1,4 @@
 #include "Copter.h"
-#include <iostream>
 
 #if MODE_LLC_ENABLED
 
