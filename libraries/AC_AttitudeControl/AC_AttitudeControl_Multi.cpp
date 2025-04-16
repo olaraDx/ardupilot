@@ -714,7 +714,13 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     // q_d = Quaternion(0.7934f, 0.0f, 0.0f, 0.6088f);
     // T = (mass * g);
 
-    q_d = Quaternion(1.0, 0.0f, 0.0f, 0.0f);
+    if((bool)_llc_use_fthr)
+    {
+        q_d = Quaternion(1.0, 0.0f, 0.0f, 0.0f);
+        omega_d = {0.0f, 0.0f, 0.0f};
+        T = (float)_llc_thr;
+    }
+        
 
     q_d.normalize();
     q_body.normalize();
@@ -741,11 +747,6 @@ void AC_AttitudeControl_Multi::llc_controller_run()
 
     // Control law for the attitude controller
     Vector3f Tau = - k1 * q_error_v - k2 * omega_error;
-
-    if(_llc_use_fthr)
-    {
-        T = (float)_llc_thr;
-    }
 
     // Control action
     float u[4] = {T, Tau[0], Tau[1], Tau[2]};
