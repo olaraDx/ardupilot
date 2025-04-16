@@ -1,4 +1,5 @@
 #include "AC_AttitudeControl_Multi.h"
+#include <AP_Logger/AP_Logger.h>
 #include <AP_HAL/AP_HAL.h>
 #include <AP_Math/AP_Math.h>
 #include <AC_PID/AC_PID.h>
@@ -657,6 +658,14 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         // Control law
         u_d = - kp1 * xe - kd1 * xe_dot - e_z * mass * g + x_d_ddot * mass;
         u_d_dot = - kp1 * xe_dot - kd1 * xe_ddot + x_d_dddot * mass;
+
+        AP::logger().Write("ZYXW", "TimeUS,q0,q1,q2,q3,z", "Qfffff", 
+            AP_HAL::micros64(), 
+            (float)q_body.q1, 
+            (float)q_body.q2,
+            (float)q_body.q3,
+            (float)q_body.q4,
+            (float)x.z);
         
         if(ref_received)
         {
