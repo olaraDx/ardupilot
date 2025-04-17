@@ -765,10 +765,17 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     omega_motors[2] = c1*u[0] + c2*u[1] + c2*u[2] - c3*u[3];
     omega_motors[3] = c1*u[0] - c2*u[1] - c2*u[2] - c3*u[3];
     
+    // // Motor angular velocities limits
+    // for(int i = 0; i < 4; i++){
+    //     // Limit omega_motors
+    //     omega_motors[i] = omega_motors[i] < 0.0f ? 0.0f : sqrtf(omega_motors[i])/838.0f;
+    //     omega_motors[i] = omega_motors[i] > 1.0f ? 1.0f : omega_motors[i];
+    // }
+
     // Motor angular velocities limits
     for(int i = 0; i < 4; i++){
         // Limit omega_motors
-        omega_motors[i] = omega_motors[i] < 0.0f ? 0.0f : sqrtf(omega_motors[i])/838.0f;
+        omega_motors[i] = omega_motors[i] < 0.0f ? 0.0f : sqrtf(omega_motors[i])/3220.0f;
         omega_motors[i] = omega_motors[i] > 1.0f ? 1.0f : omega_motors[i];
     }
 
