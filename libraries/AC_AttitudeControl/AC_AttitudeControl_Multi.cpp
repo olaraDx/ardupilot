@@ -565,6 +565,12 @@ void AC_AttitudeControl_Multi::llc_controller_run()
     Matrix3f kd1(-0.5f, 0.0f, 0.0f,
                 0.0f, -0.5, 0.0f,
                 0.0f, 0.0f, -0.5f);
+
+    Vector3f fd(0.0f, 0.0f, 0.0f);
+    Vector3f fd_dot(0.0f, 0.0f, 0.0f);
+
+    Vector3f zb(0.0f, 0.0f, 0.0f);
+    Vector3f fd_norm(0.0f, 0.0f, 0.0f);
     
 
     if(_ahrs.get_relative_position_NED_home(x) && _ahrs.get_velocity_NED(x_dot)) 
@@ -581,6 +587,17 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         Vector3f u_d = kp1 * xe + kd1 * xe_dot - e_z * mass * g + x_d_ddot * mass;
         // Vector3f u_d_dot = kp1 * xe_dot + x_d_dddot*mass;// + kd1 * xe_ddot + x_d_dddot * mass;
         Vector3f u_d_dot = kp1 * xe_dot + kd1 * xe_ddot + x_d_dddot * mass;
+
+        fd = u_d;
+        fd_dot = u_d_dot;
+
+        Quaternion rot(1.0f, 0.0f, 0.0f, 0.0f);
+        _ahrs.get_quat_body_to_ned(rot);
+        zb = rot * e_z; // Body frame z-axis in NED inertial frame
+        zb = -zb;
+
+        fd_norm = fd.normalized(); // Normalize the desired force vector
+        zb = zb.normalized(); // Normalize the body frame z-axis
 
         // Desired attitude
         Vector3f u_d_norm = u_d.normalized();
@@ -733,7 +750,11 @@ void AC_AttitudeControl_Multi::llc_controller_run()
         attitude_data << omega_d.x << " " << omega_d.y << " " << omega_d.z << " "; // omega_d vector
         attitude_data << omega.x << " " << omega.y << " " << omega.z << " "; // omega vector
         attitude_data << u[0] << " " << u[1] << " " << u[2] << " " << u[3] << " "; // Control action
-        attitude_data << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << std::endl; // Motor angular velocities
+        attitude_data << omega_motors[0] << " " << omega_motors[1] << " " << omega_motors[2] << " " << omega_motors[3] << " "; // Motor angular velocities
+        attitude_data << fd.x << " " << fd.y << " " << fd.z << " "; // Control force
+        attitude_data << fd_dot.x << " " << fd_dot.y << " " << fd_dot.z << " "; // Control force derivative
+        attitude_data << fd_norm.x << " " << fd_norm.y << " " << fd_norm.z << " "; // Control force normalized
+        attitude_data << zb.x << " " << zb.y << " " << zb.z << std::endl; // Body frame z-axis in NED inertial frame
     }
 
     attitude_data.close();
